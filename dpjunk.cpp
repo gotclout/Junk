@@ -27,11 +27,12 @@ void printN(int** & N, int m, int p)
   }
 }
 
-void buildN(int** & N, int m, int p)
+int buildN(int** & N, int m, int p)
 {
   int xp = 0,
       wp = 0,
-      pr = 0;
+      pr = 0,
+      hz = 0;
 
   size_t pos = 0;
 
@@ -44,13 +45,22 @@ void buildN(int** & N, int m, int p)
       else
       {
         pr = N[i-1][j];
+        cout << "prev: " << pr << endl;
         if(x[i] == w[j])
-          N[i][j] += pr;
+        {
+          cout << "match: x[" << i << "] : " << x[i]
+               << "\tw[" << j << "] : " << w[j] << endl;
+          N[i][j] += pr + 1;
+          if(N[i][j] > p && N[i][j] % p == 0 && N[i][j] > hz)
+            hz = N[i][j];
+        }
         else
           N[i][j] = 0;
       }
     }
   }
+
+  return hz;
 }
 
 int main(int argc, char** argv)
@@ -84,7 +94,10 @@ int main(int argc, char** argv)
   }
 
   printN(N, m, p);
-  buildN(N, m, p);
+  int freq = buildN(N, m, p);
+  printN(N, m, p);
+  cout << "Freq: " << freq << endl;
+
   return 0;
 }
 
