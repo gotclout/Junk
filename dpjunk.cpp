@@ -40,19 +40,28 @@ int buildN(int** & N, int m, int p)
   {
     for(int j = 0; j < p; j++)
     {
-      if(i == 0)
-        N[i][j] = 0;
+      //cout << "x[i] ~ " << x[i] << " : w[j] ~ " << w[j] << endl;
+      if(i == 0 && x[i] == w[j])
+        N[i][j] = 1;
+      else if(i == 0) N[i][j] = 0;
       else
       {
-        pr = N[i-1][j];
+        if(j > 0)pr = N[i-1][j-1];
+        else pr = 0;
         cout << "prev: " << pr << endl;
         if(x[i] == w[j])
         {
           cout << "match: x[" << i << "] : " << x[i]
                << "\tw[" << j << "] : " << w[j] << endl;
-          N[i][j] += pr + 1;
-          if(N[i][j] > p && N[i][j] % p == 0 && N[i][j] > hz)
-            hz = N[i][j];
+           N[i][j] += pr + 1;
+          if(N[i][j] == p)
+          {
+            cout << "\tN[i][j] ~ " << N [i][j]
+                 << " | N[i][j] % " << p << " ~  " << N[i][j] % p << endl;
+            hz++;
+            cout << "hz: " << hz << endl;
+          }
+
         }
         else
           N[i][j] = 0;
@@ -71,7 +80,7 @@ int main(int argc, char** argv)
   }
   else
   {
-    x = "abcabcababac";
+    x = "abcabcaabcccabc";
     w = "abc";
   }
 
