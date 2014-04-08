@@ -206,7 +206,6 @@ int main(int argc, char** argv)
 
   printV(V);
   readF();
-  populateV();
   buildV(V);
   printV(V);
 
@@ -215,5 +214,12 @@ int main(int argc, char** argv)
   for(int k = 0; k < P; ++k)
     cout << " Player: " << r[k] << " is selected.\n";
 
+  if(V)
+  {
+    for(int i = 0; i < P; ++i)
+      delete [] V[i];
+    delete [] V;
+  }
+  
   return 0;
 }
