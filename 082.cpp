@@ -74,26 +74,6 @@ void readF(string pName = "in.txt")
 /**
  *
  */
-void populateV()
-{
-  for(int i = 0; i < N; ++i)
-  {
-    valV.push_back(A[i][1]);
-    cosV.push_back(A[i][2]);
-    posV.push_back(A[i][3]);
-  }
-
-  for(int j = 0; j < N; ++j)
-  {
-    cout << "valV[" << j << "] : " << valV[j] << endl
-         << "cosV[" << j << "] : " << cosV[j] << endl
-         << "posV[" << j << "] : " << posV[j] << endl;
-  }
-}
-
-/**
- *
- */
 void printA()
 {
   cout << "Rendering A[" << N << "][" << J <<"]\n\n";
