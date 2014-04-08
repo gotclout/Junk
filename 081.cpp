@@ -93,6 +93,11 @@ int main(int argc, char** argv)
   printN(N, m, p);
   cout << "Freq: " << freq << endl;
 
+  for( i = 0; i < m; ++i)
+    delete [] N[i];
+  
+  delete [] N;
+  
   return 0;
 }
 
