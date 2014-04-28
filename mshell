@@ -153,7 +153,6 @@ void parse_args(char* buf, char** args, int & num_args)
 int main(int argc, char** argv)
 {
   int num_args = 0,               //num args
-      fflag    = 0,               //num of args til first flag
       i        = 0;               //loop var
   char *args[max_line],           //parsed command list
                 *PATH = NULL,     //parsed path
@@ -165,12 +164,12 @@ int main(int argc, char** argv)
   cout << ">> ";                              //prompt
   getline(&list_command, &max_line, stdin);   //read command line
   parse_args(list_command, args, num_args);   //parse command line
-  fflag = num_args;
 
   //loop until exit
   while((strcmp(args[0], "exit")))
   {
-    bool amp = 0;                             //wait &
+    int fflag = num_args;                     //num of args til first flag
+    bool amp  = 0;                            //wait &
     for(int i = 1; i < num_args; ++i)         //check for & < >
     {
       if(*args[i]== '>') outf = args[i+1];
@@ -178,7 +177,7 @@ int main(int argc, char** argv)
       else if(*args[i]== '&') amp = true;
       if(inf || outf || amp && fflag == num_args) fflag = i;
     }
-    fflag == num_args ? args[fflag] = 0 : args[fflag-1] = 0;
+    args[fflag] = 0;
     PATH = get_path(args);
     if(PATH)
     {
