@@ -3,232 +3,327 @@
 #include <string>
 #include <iomanip>
 #include <vector>
+#include <list>
+#include <map>
+
+#define NIL NULL
 
 using namespace std;
 
-const static int n = 7;
-      static int t = 0;
+/** Time **/
+static int t = 0;
 
-struct vertex
+/*******************************************************************************
+ *
+ *
+ ******************************************************************************/
+struct Vertex
 {
-  vector<vertex*> adj;
-  vector<vertex*> pi;
-  string          color;
-  int             d,
-                  f,
-                  id;
+  typedef list<Vertex*>     AdjList;
+  typedef AdjList::iterator AdjListIt;
 
-  vertex(int pId)
+  AdjList* adj;   //
+  Vertex*  pi;    //
+  string   color; //
+  int      d,     //
+           f,     //
+           id;    //
+
+  /**
+   *
+   */
+  Vertex() { adj = 0; pi = 0; color = "UNDEFINED"; d = f = id = -1; };
+
+  /**
+   *
+   */
+  Vertex(int pId)
   {
-    id = pId;
+    id  = pId;
+    pi  = 0;
+    adj = 0;
+    d   = 0;
+    f   = 0;
   };
 
-  friend ostream& operator<< (ostream & o, vertex & v)
+  /**
+   *
+   */
+  bool add_adj(Vertex* & v)
   {
-    size_t i = 0,
-           sz = v.adj.size();
+    bool ret = true;
+    if(v)
+      adj->push_back(v);
+    else
+      ret = false;
+
+    return ret;
+  };
+
+  /**
+   *
+   */
+  bool operator<(const Vertex & rhs) const { return id < rhs.id; };
+
+  /**
+   *
+   */
+  friend ostream& operator<< (ostream & o, Vertex & v)
+  {
+    size_t sz = v.adj->size();
 
     o << "Rendering Vertex " << v.id << "\nAdjacency List Len: " << sz << endl;
 
     if(sz > 0)
     {
-      o << "\nVertex " << v.id << " Adjacent To The Following Verticies...\n";
-      for(; i < sz; ++i)
-        o << "Vertex: " << v.adj[i]->id << endl;
-    }
-
-    sz = v.pi.size();
-    o << "\nPredecessor List Len: " << sz << endl;
-    if(sz > 0)
-    {
-      o << "\nVertex " << v.id << " Has The Following Predecessors...\n";
-      for(i = 0; i < sz; ++i)
-        o << "         Predecessor: " << v.pi[i]->id << endl;
+      o << "\nVertex " << v.id << " Adjacent To " << v.adj->size() << " Verticies\n";
+      AdjListIt it = v.adj->begin();
+      for(; it != v.adj->end(); ++it)
+        o << "Vertex: " << (*it)->id << endl;
     }
     else
-      o << "\nVertex " << v.id << " Has No Predecessor\n";
+      o << "Vertex: " << v.id << " Has No Adjacent Verticies\n";
 
-    o << "      Discovery Time: " << v.d
-      << "\n         Finish Time: " << v.f
-      << "\n               Color: " << v.color << endl;
+    if(v.pi)
+      o << "\nPredecessor:    " << v.pi->id << endl;
+    else
+      o << "\nPredecessor:    NIL\n";
+
+    o << "Discovery Time: " << v.d
+      << "\n   Finish Time: " << v.f
+      << "\n         Color: " << v.color << endl;
 
     return o;
   };
 };
 
-struct edge
+typedef list<Vertex*>     AdjList;
+typedef AdjList::iterator AdjListIt;
+
+/*******************************************************************************
+ *
+ *
+ ******************************************************************************/
+struct Edge
 {
-  vertex* v1,
-        * v2;
+  Vertex* v1,       //
+        * v2;       //
+         int id;    //
+  static int count; //
 
-         int id;
-  static int count;
+  /**
+   *
+   */
+  Edge() {v1 = v2 = 0; id = Edge::count++; };
 
-  edge(vertex* pBegin, vertex* pEnd)
+  /**
+   *
+   */
+  Edge(Vertex* pV1, Vertex* pV2)
   {
-    v1 = pBegin;
-    v2 = pEnd;
-    id = count;
-    edge::count++;
+    v1 = &(*pV1);
+    v2 = &(*pV2);
+    id = Edge::count++;
   };
 
-  friend ostream& operator <<(ostream & o, edge & e)
+  /**
+   *
+   */
+  friend ostream& operator <<(ostream & o, Edge & e)
   {
-    o << "Edge " << e.id << ": ";
     if(e.v1 && e.v2)
-      o << " [" << e.v1->id << ", " << e.v2->id << "]\n";
+      o << "Edge: [" << e.v1->id << ", " << e.v2->id << "]\n";
     return o;
   };
 };
+int Edge::count = 1;
 
-int edge::count = 0;
+typedef map<Vertex, AdjList>  VertexMap;
+typedef VertexMap::iterator   VertexMapIt;
+typedef VertexMap::value_type VertexMapType;
 
-struct graph
+/*******************************************************************************
+ *
+ *
+ ******************************************************************************/
+struct Graph
 {
-  vector<vertex*> V;
-  vector<edge>    E;
+  vector<Edge> E; //
 
-  size_t size() { return V.size(); };
+  VertexMap VE;
 
-  friend ostream& operator << (ostream & o, graph & g)
+  /**
+   *
+   */
+  size_t vsize() { return VE.size(); };
+
+  /**
+   *
+   */
+  size_t esize() { return E.size(); };
+
+  /**
+   *
+   */
+  Graph() {};
+
+  /**
+   *
+   */
+  void add_edge(int u, int v)
   {
-    size_t i = 0;
-    o << "Rendering Graph...\n"
-      << "Num Verticies: " << g.size() << endl;
-    for( ; i < g.size(); ++i)
+    VertexMapIt uit, vit, beg = VE.begin();
+    Vertex* uvt, //u vertex ptr
+           *vvt; //v vertex ptr
+
+    uit = VE.find(Vertex(u));
+    if(uit == VE.end())
+      uit = VE.insert(beg, VertexMapType(Vertex(u), AdjList()));
+    uvt = (Vertex*)&(uit->first);
+
+    if(!uvt->adj) uvt->adj = (AdjList*)& uit->second;
+
+    vit = VE.find(Vertex(v));
+    if(vit == VE.end())
+      vit = VE.insert(beg, VertexMapType(Vertex(v), AdjList()));
+    vvt = (Vertex*)&(vit->first);
+
+    if(!vvt->adj) vvt->adj = (AdjList*)& vit->second;
+
+    uvt->add_adj(vvt);
+    vvt->add_adj(uvt);
+    E.push_back(Edge(&(*uvt), &(*vvt)));
+  };
+
+  /**
+   *
+   */
+  friend ostream& operator << (ostream & o, Graph & G)
+  {
+    size_t i = 0, sz = G.vsize();
+
+    o << "Rendering Graph...\n\n" << "Num Verticies: " << sz << endl;
+
+    VertexMapIt vmi = G.VE.begin();
+
+    for(; vmi != G.VE.end(); ++vmi)
     {
-      vertex* v = g.V[i];
-      if(v)
-        o << *v << endl;
+      Vertex* v = (Vertex*)&(vmi->first);
+      cout << *v << endl;
     }
 
-    o << "Rendering Edges\nNum Edges: " << g.E.size() << endl;
-    for(i = 0; i < g.E.size(); ++i)
+    o << "Rendering Edges\nNum Edges: " << G.E.size() << endl;
+    for(i = 0; i < G.E.size(); ++i)
     {
-      edge e = g.E[i];
+      Edge e = G.E[i];
       o << e;
     }
     o << "\nRendering Complete\n";
-  };
 
-  ~graph()
-  {
-    for(size_t i = 0; i < V.size(); ++i)
-    {
-      delete V[i];
-      V[i] = 0;
-    }
-    V.clear();
+    return o;
   };
 };
 
-graph g;
-
-void make_graph(graph & G)
+/**
+ *
+ */
+int DFS_VISIT(Vertex* & u, vector<Edge> & bridges)
 {
-  vertex *v1 = new vertex(1),
-         *v2 = new vertex(2),
-         *v3 = new vertex(3),
-         *v4 = new vertex(4),
-         *v5 = new vertex(5),
-         *v6 = new vertex(6),
-         *v7 = new vertex(7);
+  u->color  = "GRAY";
+  u->d      = ++t;
+  Vertex* v = 0;
+  int minDu = t, minDv;
 
-  v1->adj.push_back(v2);
-  v1->adj.push_back(v4);
-  v2->adj.push_back(v1);
-  v2->adj.push_back(v4);
-  v2->adj.push_back(v3);
-  v3->adj.push_back(v2);
-  v4->adj.push_back(v1);
-  v4->adj.push_back(v2);
-  v4->adj.push_back(v5);
-  v5->adj.push_back(v4);
-  v5->adj.push_back(v6);
-  v5->adj.push_back(v7);
-  v6->adj.push_back(v5);
-  v6->adj.push_back(v7);
-  v7->adj.push_back(v5);
-  v7->adj.push_back(v6);
-
-  edge e1(v1, v2), e2(v1, v4), e3(v5, v6), e4(v2, v4),
-       e5(v2, v3), e6(v5, v7), e7(v4, v5), e8(v6, v7);
-
-  G.E.push_back(e1);
-  G.E.push_back(e2);
-  G.E.push_back(e3);
-  G.E.push_back(e4);
-  G.E.push_back(e5);
-  G.E.push_back(e6);
-  G.E.push_back(e7);
-  G.E.push_back(e8);
-
-  G.V.push_back(v1);
-  G.V.push_back(v2);
-  G.V.push_back(v3);
-  G.V.push_back(v4);
-  G.V.push_back(v5);
-  G.V.push_back(v6);
-  G.V.push_back(v7);
-};
-
-void DFS_VISIT(vertex* & u)
-{
-  u->color = "GRAY";
-  ++t;
-  u->d = t;
-  for(size_t i = 0; i < u->adj.size(); ++i)
+  for(AdjListIt uit = u->adj->begin(); uit != u->adj->end(); ++uit)
   {
-    vertex* v = u->adj[i];
+    v = (*uit);
     if(v->color == "WHITE")
     {
-      u->pi.push_back(v);
-      DFS_VISIT(v);
+      v->pi = &(*u);
+      minDv = DFS_VISIT(v, bridges);
+      minDu = min(minDu, minDv);
+
+      if(minDv > minDu)
+      {
+        Edge bridge(u, v);
+        bridges.push_back(bridge);
+      }
     }
+    else if(u->pi && v->id != u->pi->id)
+      minDu = min(minDu, v->d);
   }
+
   u->color = "BLACK";
-  t++;
-  u->f = t;
+  u->f = ++t;
+
+  return minDu;
 }
 
-void DFS(graph & G)
+/**
+ *
+ */
+vector<Edge> DFS_BRIDGE(Graph & G)
 {
-  int i = 0;
-  vertex* u;
+  vector<Edge> bridges;
+  VertexMapIt vit = G.VE.begin();
 
-  for(; i < n; ++i)
+  for(; vit != G.VE.end(); ++vit)
   {
-    u = G.V[i];
-    u->color = "WHITE";
-    //u->pi[i] = NULL;
+    Vertex* v = (Vertex*)&vit->first;
+    v->color  = "WHITE";
+    v->pi     = NIL;
   }
 
   t = 0;
 
-  for(i = 0; i < n; ++i)
+  for(vit = G.VE.begin(); vit != G.VE.end(); ++vit)
   {
-    u = G.V[i];
-    if(u->color == "WHITE")
-      DFS_VISIT(u);
+    Vertex*v = (Vertex*)&vit->first;
+    if(v->color == "WHITE")
+      DFS_VISIT(v, bridges);
   }
+
+  return bridges;
 }
 
-void print_graph(graph & G)
+/**
+ *
+ */
+void PRINT_BRIDGES(const vector<Edge> & bridges)
 {
-  cout << "Rendering Graph With " << G.size() << "Verticies...\n";
-  for(size_t i = 0; i < G.size(); ++i)
+  size_t i = 0, sz = bridges.size();
+
+  if(sz == 0)
+    cout << "No Bridges Found In Graph\n";
+  else
   {
-     vertex* v = G.V[i];
-     if(v)
-       cout << *v << endl;
+    cout << "Rendering " << sz << " Bridges...\n\n";
+    for(; i < sz; ++i)
+    {
+      Edge e = bridges[i];
+      cout << "Birdge " << e;
+    }
   }
-  cout << "Rendering Complete\n";
 }
 
+/**
+ * Finds bridges in a graph using DFS and DFS-VISIT patterns
+ */
 int main(int argc, char** argv)
 {
-  make_graph(g);
-  DFS(g);
-  cout << g << endl;
+  Graph g1;
+  g1.add_edge(1,2);
+  g1.add_edge(1,4);
+  g1.add_edge(4,5);
+  g1.add_edge(5,6);
+  g1.add_edge(6,7);
+  g1.add_edge(2,4);
+  g1.add_edge(5,7);
+  g1.add_edge(2,3);
+
+  vector<Edge> bridges1 = DFS_BRIDGE(g1);
+  cout << g1 << endl;
+  PRINT_BRIDGES(bridges1);
+
   return 0;
 }
