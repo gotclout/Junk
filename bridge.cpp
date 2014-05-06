@@ -156,7 +156,7 @@ typedef VertexMap::iterator   VertexMapIt;
 typedef VertexMap::value_type VertexMapType;
 
 /*******************************************************************************
- * Structure for representing a graph
+ * Structure for representing a graph G = (V, E)
  ******************************************************************************/
 struct Graph
 {
@@ -165,17 +165,17 @@ struct Graph
   VertexMap VE;   //Maps a vertex to a list of adjacent verticies
 
   /**
-   *
+   * Retrieves the number of verticies in G
    */
   size_t vsize() { return VE.size(); };
 
   /**
-   *
+   * Retrieves the number of edges in G
    */
   size_t esize() { return E.size(); };
 
   /**
-   *
+   * Default Construct
    */
   Graph() {};
 
@@ -362,7 +362,8 @@ void PRINT_BRIDGES(const vector<Edge> & bridges)
 }
 
 /**
- * Finds bridges in a graph using DFS and DFS-VISIT patterns
+ * Main: Finds bridges in a graph using DFS and DFS-VISIT patterns
+ * Default graph g1 constructed in increasing edge order
  */
 int main(int argc, char** argv)
 {
