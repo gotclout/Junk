@@ -80,8 +80,6 @@ struct Vertex
   {
     size_t sz = v.adj->size();
 
-    //o << "Rendering Vertex " << v.id << "\nAdjacency List Len: " << sz << endl;
-
     if(sz > 0)
     {
       o << v.id << " Adjacent to Verticies: ";
