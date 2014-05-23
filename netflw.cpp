@@ -260,6 +260,15 @@ struct Graph
       return (Vertex*) &uit->first;
   };
 
+  void nilpi()
+  {
+    for(VertexMapIt i = VE.begin(); i != VE.end(); ++i)
+    {
+      Vertex* vptr = (Vertex*) &i->first;
+      vptr->pi = 0;
+    }
+  }
+
   /**
    *
    */
@@ -293,7 +302,9 @@ struct Graph
     uvt->add_adj(vvt);
     vvt->add_adj(uvt);
     E.push_back(Edge(&(*uvt), &(*vvt), w));
-    E.push_back(Edge(&(*vvt), &(*uvt), w));
+    E.push_back(Edge(&(*vvt), &(*uvt), 0));
+
+    //get_edge(*vvt, *uvt)->flow = w;
     uvt->ogf = vvt->inf = w;
   };
 
@@ -539,7 +550,6 @@ int BFS(Graph & G, Vertex s, Vertex t,
   queue<Vertex> q;
   map<Vertex, int> M;
   M[s] = INT_MAX;
-//  s.pi = &s;
   Vertex* sp = G.get_vertex(s);
   if(sp)
     sp->pi = &(*sp);
@@ -559,7 +569,7 @@ int BFS(Graph & G, Vertex s, Vertex t,
       Vertex* v = G.adjacent_vertex(*u, *e);
       cout << *e;
 
-      if(v->pi == NIL && *v != s && C[*e] - F[*e] > 0)
+      if(v->pi == NIL && v->id != s.id && C[*e] - F[*e] > 0)
       {
         v->pi = (Vertex*) &(G.VE.find(*u)->first);
         P[*v] = *v->pi;
@@ -578,9 +588,6 @@ int BFS(Graph & G, Vertex s, Vertex t,
     }
   }
 
-//  while(!q.empty())
-//    cout << "BFS NODE\n" << q.dequeue().id << endl;
-
   return r;
 }
 
@@ -595,13 +602,12 @@ int EDMONDS_KARP(Graph & G, Vertex s, Vertex t)
 //  EdgeVector P;
   map<Vertex, Vertex> P;
   map<Edge, int> C;
-  EdgeVector E = G.get_edges();
-  for(size_t i = 0; i < E.size(); ++i)
+  EdgeVector* E = (EdgeVector*) &(G.get_edges());
+  for(size_t i = 0; i < E->size(); ++i)
   {
-    C[E[i]] = E[i].cap;
-    F[E[i]] = E[i].flow;
+    C[(*E)[i]] = (*E)[i].cap;
+    F[(*E)[i]] = (*E)[i].flow;
   }
-   // F.push_back(&E[i]);
 
   while(m)
   {
@@ -614,13 +620,16 @@ int EDMONDS_KARP(Graph & G, Vertex s, Vertex t)
     while(v.id != s.id)
     {
       Vertex u = P[v];
-      cout << "[u, v] : [" << u.id << ", " << v.id << "]\n";
       Edge* uv = G.get_edge(u, v);
       Edge* vu = G.get_edge(v, u);
+      uv->flow += m;
+      vu->flow -= m;
       F[*uv] += m;
       F[*vu] -= m;
       v = u;
     }
+    P.clear();
+    G.nilpi();
   }
 
   cout << "EDMONDS_KARP: " << f << endl;
@@ -633,6 +642,19 @@ int EDMONDS_KARP(Graph & G, Vertex s, Vertex t)
     cout << "  P2: " << v.id << endl;
   }
 
+  return f;
+}
+
+int EDMONDS_KARP_2(Graph & G, Vertex s, Vertex t)
+{
+  int f;
+  vector<Vertex> q;
+  int qt;
+  f = 0;
+
+  while(1)
+  {
+  }
   return f;
 }
 
