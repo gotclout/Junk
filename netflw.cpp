@@ -4,7 +4,6 @@
 #include <sstream>
 #include <list>
 #include <map>
-#include <set>
 #include "FifoQueue.h"
 
 #define NIL NULL
@@ -31,8 +30,7 @@ struct Vertex
   string   color; //state
   int      d,     //discovery time
            f,     //finish time
-           inf,   //incoming flow
-           ogf;   //outgoing flow
+           mcap;  //min capacity of path to this vertex
   string   id;    //uid
 
   /**
@@ -40,16 +38,18 @@ struct Vertex
    */
   Vertex()
   {
-    adj = 0;
-    pi = 0;
+    adj   = 0;
+    pi    = 0;
     color = "UNDEFINED";
-    d = f = -1;
-    id = "";
-    inf = ogf = 0;
+    d     = f = -1;
+    id    = "DEFAULT";
+    mcap  = INT_MAX;
   };
 
   /**
    * Construct from id
+   *
+   * @param string pId is the uid for this vertex
    */
   Vertex(string pId)
   {
@@ -57,23 +57,16 @@ struct Vertex
     pi    = 0;
     adj   = 0;
     d     = f = -1;
+    mcap  = INT_MAX;
     color = "UNDEFINED";
-    inf = ogf = 0;
   };
 
   /**
    * Adds a vertex to this vertexes adjaceny list
+   *
+   * @param Vertex* v is the vertex pointer to be added to the adjacency list
    */
-  bool add_adj(Vertex* & v)
-  {
-    bool ret = true;
-    if(v)
-      adj->push_back(v);
-    else
-      ret = false;
-
-    return ret;
-  };
+  bool add_adj(Vertex* & v){ adj->push_back(v); };
 
   /**
    * Less than operator overload for container comparators
@@ -81,12 +74,6 @@ struct Vertex
    * @param Vertex is the right hand side vertex
    */
   bool operator<(const Vertex & rhs) const { return id < rhs.id; };
-
-  /**
-   *
-   */
-  bool operator>(const Vertex & rhs) const { return rhs.id < id; };
-
 
   /**
    *
@@ -107,6 +94,11 @@ struct Vertex
    * @param ostream outputstream for rendering
    * @param Vertex is the vertex to be rendered
    */
+  friend ostream& operator<< (ostream & o, const Vertex & pV)
+  {
+    Vertex v = (Vertex) pV;
+    return operator<<(o, v);
+  };
   friend ostream& operator<< (ostream & o, Vertex & v)
   {
     size_t sz = v.adj->size();
@@ -121,13 +113,11 @@ struct Vertex
         if(i+1 != sz) cout << ", ";
       }
     }
-    else
-      o << "Vertex: " << v.id << " Has No Adjacent Verticies";
+    else o << "Vertex: " << v.id << " Has No Adjacent Verticies";
 
     cout << endl;
     if(v.pi) o << "                  pi[" << v.id << "]:" << v.pi->id;
     else o << "                  pi[" << v.id << "]:" << "NIL";
-
     if(v.d < 0) o << ", d[" << v.id << "]:" << "UNDEFINED";
     else o << ", d[" << v.id << "]:" << v.d;
     if(v.f < 0) o << ", f[" << v.id << "]:" << "UNDEFINED";
@@ -172,7 +162,11 @@ struct Edge
   };
 
   /**
+   * Construct from vertex pointer and value
    *
+   * @param Vertex* pV1 is the source vertex of edge e
+   * @param Vertex* pV2 is the destination vertex of edge e
+   * @param int pCam is the capacity of edge e
    */
   Edge(Vertex* pV1, Vertex* pV2, int pCap)
   {
@@ -184,7 +178,10 @@ struct Edge
   };
 
   /**
+   * Less than operator overload
    *
+   * @param rhs is the edge to be compared
+   * @return true if the id of this edge < rhs false otherwise
    */
   bool operator<(const Edge & rhs) const
   {
@@ -192,21 +189,29 @@ struct Edge
   };
 
   /**
+   * Retrieves the residual value of the edge
+   *
+   * @return int is the value of capacity - flow
+   */
+  int residual() { return cap - flow; };
+
+  /**
    * Renders an edge
+   *
+   * @param ostream o is the outputstream
+   * @param Edge e is the edge to be rendered
+   * @return ostream is the same as param o
    */
   friend ostream& operator<< (ostream & o, Edge e)
   {
-    if(e.v1 && e.v2)
-      o << "Edge: [" << e.v1->id << ", " << e.v2->id << "]";
-    o << ", Capacity:" << e.cap << ", Flow:" << e.flow << endl;
+    o << "Edge: [" << e.v1->id << ", " << e.v2->id << "]"
+      << ", Capacity:" << e.cap << ", Flow:" << e.flow << endl;
 
     return o;
   };
 };
 
 /** Typedefs for Vertex Containers **/
-typedef vector<Vertex*> VertexPtrVec;
-typedef VertexPtrVec::iterator VertexPtrVecIt;
 typedef map<Vertex, AdjList>  VertexMap;
 typedef VertexMap::iterator   VertexMapIt;
 typedef VertexMap::value_type VertexMapType;
@@ -214,19 +219,15 @@ typedef VertexMap::value_type VertexMapType;
 /** Typedefs for Edge Containers **/
 typedef vector<Edge> EdgeVector;
 typedef vector<Edge*> EdgePtrVector;
-typedef EdgeVector::iterator EdgeVecIt;
-typedef EdgePtrVector::iterator EdgePtrVecIt;
 
 /*******************************************************************************
  * Structure for representing a graph
  ******************************************************************************/
 struct Graph
 {
-  EdgeVector E; //Collection of Edges
-
-  VertexMap VE;   //Maps a vertex to a list of adjacent verticies
-
-  bool directed;  //indicates whether G is a directed or undirected graph
+  EdgeVector E;  //Collection of Edges
+  VertexMap VE;  //Maps a vertex to a list of adjacent verticies
+  bool directed; //indicates whether G is a directed or undirected graph
 
   /**
    * Retrieves the number of verticies |V|
@@ -234,32 +235,27 @@ struct Graph
   size_t vsize() { return VE.size(); };
 
   /**
-   * Retrieves the number of edges  |E|
+   * Retrieves the number of edges |E|
    */
   size_t esize() { return E.size(); };
 
   /**
    * Default construct
+   *
+   * @param bool pDirected is true if G is directed, false otherwise
    */
   Graph(bool pDirected = false) { directed = pDirected; };
 
   /**
+   * Retrieves a pointer to the vertex v in G
    *
+   * @param Vertex v is the vertex to be retrieved
    */
-  const EdgeVector& get_edges() { return E; };
+  Vertex* get_vertex(Vertex v) { return (Vertex*) &VE.find(v)->first; };
 
   /**
-   *
+   * Sets the parent value of all verticies to nil
    */
-  Vertex* get_vertex(Vertex v)
-  {
-    VertexMapIt uit = VE.find(v);
-    if(uit == VE.end())
-      return 0;
-    else
-      return (Vertex*) &uit->first;
-  };
-
   void nilpi()
   {
     for(VertexMapIt i = VE.begin(); i != VE.end(); ++i)
@@ -269,10 +265,6 @@ struct Graph
     }
   }
 
-  /**
-   *
-   */
-  void add_directed_edge(string u, string v, int w){ add_edge(u, v, w); };
   /**
    * Adds an edge to this graph
    *
@@ -304,88 +296,39 @@ struct Graph
     E.push_back(Edge(&(*uvt), &(*vvt), w));
     E.push_back(Edge(&(*vvt), &(*uvt), 0));
 
-    //get_edge(*vvt, *uvt)->flow = w;
-    uvt->ogf = vvt->inf = w;
   };
 
   /**
-   *
+   * Updates an edge flow and its reverse edge by m
    */
-  int get_edge_weight(Vertex* v1, Vertex* v2)
+  void update_edge(Vertex v1, Vertex v2, int m)
   {
-    if(E.size() == 0)
-      return -1;
-    else
+    for(size_t i = 0; i < E.size(); ++i)
     {
-      for(size_t i = 0; i < E.size(); ++i)
-      {
-        Edge e = E[i];
-        if(e.v1->id == v1->id && e.v2->id == v2->id)
-          return e.cap;
-      }
-    }
-    return -1;
-  };
-
-
-  /**
-   *
-   */
-  void update_edge(Vertex v1, Vertex v2)
-  {
-    if(E.size() > 0)
-    {
-      for(size_t i = 0; i < E.size(); ++i)
-      {
-        if(E[i].v1->id == v1.id && E[i].v2->id == v2.id)
-        {
-          E[i].flow++;
-          E[i].cap--;
-        }
-      }
+      if(E[i].v1->id == v1.id && E[i].v2->id == v2.id)E[i].flow += m;
+      else if(E[i].v1->id == v2.id &&  E[i].v2->id == v1.id) E[i].cap -= m;
     }
   };
 
   /**
-   *
-   */
-  Edge* get_edge(Vertex v1, Vertex v2)
-  {
-    if(E.size() > 0)
-    {
-      for(size_t i = 0; i < E.size(); ++i)
-      {
-        if(E[i].v1->id == v1.id && E[i].v2->id == v2.id)
-          return &E[i];
-      }
-    }
-
-    return 0;
-  }
-
-
-  /**
-   *
+   * Retrieves the edges connecting v to e in G
    */
   EdgePtrVector adjacent_edges(Vertex v)
   {
     EdgePtrVector ev;
     for(size_t i = 0; i < E.size(); ++i)
-    {
-      if(E[i].v1->id == v.id)
-        ev.push_back(&E[i]);
-    }
+      if(E[i].v1->id == v.id) ev.push_back(&E[i]);
     return ev;
   };
 
   /**
+   * Retrieves the vertex adjacent to v on edge e
    *
+   * @param Vertex v is the specified vertex
+   * @param Edge e is the specified edge
+   * @return Vertex* is the vertex adjacent to v on edge e
    */
-  Vertex* adjacent_vertex(Vertex v, Edge e)
-  {
-    if(e.v1->id == v.id) return e.v2;
-    else return e.v1;
-  };
+  Vertex* adjacent_vertex(Vertex v, Edge e) {return *e.v1 == v ? e.v2 : e.v1;};
 
   /**
    * Renders a graph
@@ -401,24 +344,14 @@ struct Graph
 
     VertexMapIt vmi = G.VE.begin();
 
-    for(; vmi != G.VE.end(); ++vmi)
-    {
-      Vertex* v = (Vertex*)&(vmi->first);
-      cout << *v << endl;
-    }
-
+    for(; vmi != G.VE.end(); ++vmi) cout << vmi->first << endl;
     o << "Rendering Edges\nNum Edges: " << G.E.size() << endl;
-    for(i = 0; i < G.E.size(); ++i)
-    {
-      Edge e = G.E[i];
-      o << e;
-    }
+    for(i = 0; i < G.E.size(); ++i) o << G.E[i];
     o << "\nRendering Complete\n";
 
     return o;
   };
 };
-
 
 /**
  * Explores adjacent verticies tracking discovery times to detect bridges
@@ -541,49 +474,36 @@ void PRINT_BRIDGES(const vector<Edge> & bridges)
 /**
  * Performs breadth first search on graph G = (V, E) with source vertex
  * s in V
+ *
+ * @param graph G is the graph to be searched
+ * @param Vertex s is the source
+ * @param Vertex t is the sink
+ * @return int is the flow along path s->t
  */
-int BFS(Graph & G, Vertex s, Vertex t,
-    map<Edge,int> & F, map<Edge, int> & C, map<Vertex, Vertex> & P)
+int BFS(Graph & G, Vertex & s, Vertex & t)
 {
   int r = 0;
-
   queue<Vertex> q;
-  map<Vertex, int> M;
-  M[s] = INT_MAX;
-  Vertex* sp = G.get_vertex(s);
-  if(sp)
-    sp->pi = &(*sp);
-
+  s.mcap = INT_MAX;
+  s.pi = &s;
   q.enqueue(s);
-  cout << "enqueue: " << s.id << endl;
 
   while(!q.empty())
   {
     Vertex* u = (Vertex*) &G.VE.find(q.dequeue())->first;
-    cout << "dequeue: " << u->id << endl;
     EdgePtrVector E = G.adjacent_edges(*u);
 
     for(size_t i = 0; i < E.size(); ++i) //for each edge adjacent to u
     {
       Edge* e   = E[i];
       Vertex* v = G.adjacent_vertex(*u, *e);
-      cout << *e;
 
-      if(v->pi == NIL && v->id != s.id && C[*e] - F[*e] > 0)
+      if(v->pi == NIL && v->id != s.id && e->residual())
       {
-        v->pi = (Vertex*) &(G.VE.find(*u)->first);
-        P[*v] = *v->pi;
-        M[*v] = min(M[*u], C[*e] - F[*e]);
-        if(v->id != t.id)
-        {
-          cout << "enqueue: " << v->id << endl;
-          q.enqueue(*v);
-        }
-        else
-        {
-          cout << "BFS: " << M[t] << endl;
-          return M[t];
-        }
+        v->pi   = (Vertex*) &(G.VE.find(*u)->first);
+        v->mcap = min(u->mcap, e->residual());
+        if(v->id != t.id) q.enqueue(*v);
+        else return v->mcap;
       }
     }
   }
@@ -592,74 +512,69 @@ int BFS(Graph & G, Vertex s, Vertex t,
 }
 
 /**
+ * Renders the resultant BFS path of EDMONDS_KARP
+ */
+void print_path(map<Vertex, Vertex> & P)
+{
+  stringstream ss;
+  ss << "Rendering Path...\n";
+  ss << P.begin()->second.id << " -> ";
+  for(map<Vertex, Vertex>::iterator it = P.begin();
+      it != P.end(); ++it)
+  {
+    Vertex v = it->first;
+    ss << v.id;
+    if(++it == P.end())
+      ss << endl;
+    else
+      ss << " -> ";
+    it--;
+  }
+  cout << ss.str();
+}
+
+/**
+ * Implementation of the FordFulkerson method for computing the maximum flow
+ * in a flow network in O(|V||E^2|)
  *
+ * @param graph G is the specified graph
+ * @param Vertex s is the source
+ * @param Vertex t is the sink
+ * @return int f is the max flow of G
  */
 int EDMONDS_KARP(Graph & G, Vertex s, Vertex t)
 {
   int m = INT_MAX, f = 0;
 
-  map<Edge, int> F;
-//  EdgeVector P;
-  map<Vertex, Vertex> P;
-  map<Edge, int> C;
-  EdgeVector* E = (EdgeVector*) &(G.get_edges());
-  for(size_t i = 0; i < E->size(); ++i)
-  {
-    C[(*E)[i]] = (*E)[i].cap;
-    F[(*E)[i]] = (*E)[i].flow;
-  }
-
   while(m)
   {
-    m = BFS(G, s, t, F, C, P);
-    if(m == 0)
-      break;
+    m = BFS(G, s, t);           //BFS returns capacity of flow for the path
+    if(m == 0)  break;          //if 0 no additional flow can be sent
+    cout << "f + m = " << f << " + " <<  m << " = " << f+m << endl;
 
-    f += m;
-    Vertex v = t;
+    f += m;                     //update the flow
+    Vertex v = *G.get_vertex(t);
+    map<Vertex, Vertex> P;
     while(v.id != s.id)
     {
-      Vertex u = P[v];
-      Edge* uv = G.get_edge(u, v);
-      Edge* vu = G.get_edge(v, u);
-      uv->flow += m;
-      vu->flow -= m;
-      F[*uv] += m;
-      F[*vu] -= m;
+      Vertex u = *(v.pi);
+      P[v] = u;
+      G.update_edge(u, v, m);   //update edge and reverse edge flow
       v = u;
     }
-    P.clear();
+    print_path(P);
     G.nilpi();
   }
 
   cout << "EDMONDS_KARP: " << f << endl;
-  for(map<Vertex, Vertex>::iterator it = P.begin();
-      it != P.end(); ++it)
-  {
-    Vertex v = it->first;
-    cout << "P1: " << v.id;
-    v = it->second;
-    cout << "  P2: " << v.id << endl;
-  }
-
-  return f;
-}
-
-int EDMONDS_KARP_2(Graph & G, Vertex s, Vertex t)
-{
-  int f;
-  vector<Vertex> q;
-  int qt;
-  f = 0;
-
-  while(1)
-  {
-  }
   return f;
 }
 
 /**
  * Finds bridges in a graph using DFS and DFS-VISIT patterns
+ *
+ * @param argc is the argument count
+ * @param argv is the argument vector
  */
 int main(int argc, char** argv)
 {
@@ -676,39 +591,37 @@ int main(int argc, char** argv)
   cout << g1 << ln;
   vector<Edge> bridges1 = DFS_BRIDGE(g1);
   PRINT_BRIDGES(bridges1);
-  /*
-     Graph g2;
-     g2.add_edge(1,2);
-     g2.add_edge(2,4);
-     g2.add_edge(4,6);
-     g2.add_edge(1,3);
-     g2.add_edge(3,2);
-     g2.add_edge(2,7);
-     g2.add_edge(2,5);
-     g2.add_edge(5,6);
+  Graph g2;
+  g2.add_edge("1","2");
+  g2.add_edge("2","4");
+  g2.add_edge("4","6");
+  g2.add_edge("1","3");
+  g2.add_edge("3","2");
+  g2.add_edge("2","7");
+  g2.add_edge("2","5");
+  g2.add_edge("5","6");
 
-     vector<Edge> bridges2 = DFS_BRIDGE(g2);
-     cout << g2 << endl;
-     PRINT_BRIDGES(bridges2);
+  vector<Edge> bridges2 = DFS_BRIDGE(g2);
+  cout << g2 << endl;
+  PRINT_BRIDGES(bridges2);
 
-     Graph g3;
-     g3.add_edge(2,1);
-     g3.add_edge(1,4);
-     g3.add_edge(2,3);
-     g3.add_edge(3,1);
-     g3.add_edge(4,5);
-     vector<Edge> bridges3 = DFS_BRIDGE(g3);
-     cout << g3 << endl;
-     PRINT_BRIDGES(bridges3);
+  Graph g3;
+  g3.add_edge("2","1");
+  g3.add_edge("1","4");
+  g3.add_edge("2","3");
+  g3.add_edge("3","1");
+  g3.add_edge("4","5");
+  vector<Edge> bridges3 = DFS_BRIDGE(g3);
+  cout << g3 << endl;
+  PRINT_BRIDGES(bridges3);
 
-     Graph g4;
-     g4.add_edge(1,2);
-     g4.add_edge(2,3);
-     g4.add_edge(3,4);
-     vector<Edge> bridges4 = DFS_BRIDGE(g4);
-     cout << g4 << endl;
-     PRINT_BRIDGES(bridges4);
-     */
+  Graph g4;
+  g4.add_edge("1","2");
+  g4.add_edge("2","3");
+  g4.add_edge("3","4");
+  vector<Edge> bridges4 = DFS_BRIDGE(g4);
+  cout << g4 << endl;
+  PRINT_BRIDGES(bridges4);
 
 /******************************************************************************
  ******************************************************************************
@@ -745,13 +658,11 @@ A-       |3    /4    |2      +F                                #: Capacity
   g5.add_edge("D", "B", 3);
   g5.add_edge("D", "E", 4);
   g5.add_edge("E", "F", 8);
-
   cout << g5 << ln;
 
   VertexMapIt src = g5.VE.find(Vertex("A"));
   VertexMapIt snk = g5.VE.find(Vertex("F"));
   EDMONDS_KARP(g5, src->first, snk->first);
-
   cout << g5 << ln;
 
   return 0;
