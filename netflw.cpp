@@ -76,7 +76,12 @@ struct Vertex
   bool operator<(const Vertex & rhs) const { return id < rhs.id; };
 
   /**
-   *
+   * Equivalence operator overload
+   * 
+   * @param Vertex rhs is a const reference to the Vertex to be compared to 
+   *  this vertex
+   * @return bool true if the id of this Vertex is equivalent to the id
+   *  of the rhs Vertex id
    */
   bool operator==(const Vertex & rhs) const
   {
@@ -84,7 +89,12 @@ struct Vertex
   };
 
   /**
-   *
+   * Inequivalence operator overload
+   * 
+   * @param Vertex rhs is a const reference to the Vertex to be compared to
+   *  this vertex
+   * @return bool true if the id of this Vertex is not equivalent to the id
+   *  of the rhs Vertex id
    */
   bool operator !=(const Vertex & rhs) const {return !(*this == rhs); };
 
@@ -152,6 +162,7 @@ struct Edge
    * Construct from verticies
    *
    * @param Vertex* pV1 start vertex, pV2 end vertex
+   * @param Vertex* pV2 end vertex
    */
   Edge(Vertex* pV1, Vertex* pV2)
   {
