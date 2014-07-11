@@ -1,530 +1,223 @@
-
-
-#include <unistd.h>
-#include <iostream>
 #include <wait.h>
-#include <string.h>
-#include <iomanip>
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
 #include <stdio.h>
+#include <unistd.h>
 #include <stdlib.h>
+#include <limits.h>
+#include <string.h>
+#include <sys/stat.h>
+#include <sys/param.h>
+#include <sys/types.h>
 #include <sys/resource.h>
 
+#include <iostream>
+
+#define MAX_ARGS 256
+#define MAX_PATH 1024
+#define MAX_LEN  2048
+#ifndef ARG_MAX
+  #define M_ARG_MAX sysconf(_SC_ARG_MAX)
+  static size_t _ARG_MAX = M_ARG_MAX;
+  #define ARG_MAX _ARG_MAX
+#endif
+
 using namespace std;
+/******************************************************************************
+ *                        Globals & Prototypes
+ *****************************************************************************/
+bool parse(char** args, int & argc);
+bool execute(char** args, char* path, char* ifile, char* ofile, bool amp = 0);
+char* findcmd(char** args);
 
-/****************************************FUNCTION PROTOTYPES*****************************************************/
-
-void get_args(char** prog_args, int & fflag, char** args);
-void parse(char* buf, char** args, int & num_args);
-void execute(char** args, char* path, char* inn, char* outt);
-void execute_a(char** args, char* path, char* inn, char* outt);
-char* f_path(char** args);
-bool redirect_wait(char*& inn, char*& outt, int num_args, char** args, int & first_flag);
-
-////////////////////////////////////////////////////////////////////////
-//
-//  Project 1 for CS 3204 Spring 2003
-//
-//  Programmer:    Robert Foster
-//  OS:            Mandrake Linux 9.0
-//  email:       rfoster@vt.edu
-//  System:        Pentium IV 1500, 256 MB Memory
-//  Compiler:      g++
-//  Last modified: May 21, 2003
-//
-//  Purpose
-//  This program reads a list of commands and arguments from the 
-//  command line stores them and acts as a normal shell creating
-//  child processes using fork and exec(multi-threading)
-//  
-//
-//  The program then writes a summary of its findings to an output
-//  file.
-//
-int main()
+/**
+ *
+ */
+int main(int argc, char** argv)
 {
+  char* args[MAX_ARGS]={0};               //parsed command list
+  char* path = NULL;                      //parsed path
+  char* ifile = NULL;                     //redirection input file name
+  char* ofile = NULL;                     //redirection output file name
+  char* prog_args[MAX_ARGS] = {0};        //arguments to executable
+  bool amp = 0;                           //& flag
+  int i, j;
 
-  //Declarations
-  char* list_command = NULL;              //entire command list
-  int num_args =0;                  //num args
-  char* args[256]={0};                //parsed command list
-  size_t size = 101;                  //read size
-  char* PATH = NULL;                  //parsed path
-  char* inn  = NULL;                  //redirection input file name
-  char* outt = NULL;                  //redirection output file name
-  int fflag = 0;                    //num of args til first flag
-  char*prog_args[256] ={0};              //arguments to executable
-  bool amp;                      //& flag
+  argc = 0;
+  parse(args, argc); //parse command line
 
-  cout << ">> ";                    //prompt
-  getline(&list_command, &size, stdin);        //read command line
-  parse(list_command, args, num_args);        //parse command line
-
-  char EXIT[] = {'e','x','i','t','\0'};        //exit 
-  char AMP[] = {'&','\0'};              //flag
-
-  //loop until exit
-  while( (strcmp(args[0], EXIT)))
+  while((strcmp(args[0], "exit"))) //loop until exit
   {
-    //check for ampersand and redirection
-    amp = redirect_wait(inn, outt, num_args, args, fflag);
-
-    //execute and wait
-    if(amp == 1)
+    for(i = 1; i < argc; ++i) //check for ampersand and redirection
     {
-      get_args(prog_args, fflag, args);
-      PATH = f_path(args);
-
-      if(PATH != NULL)
-        execute_a(prog_args, PATH, inn, outt);
+      if(*args[i]== '>') ofile = args[i+1];
+      else if(*args[i]== '>') ifile = args[i+1];
+      else if(*args[i]== '&') amp = true;
     }
-
-    //execute no wait
-    else
+    for(i = 0, j = 0; i < argc; ++i)
     {
-      get_args(prog_args, fflag, args);
-      PATH = f_path(args);
-
-      if(PATH != NULL)
-        execute(prog_args, PATH, inn, outt);
+      if(*args[i] == '&') continue;
+      prog_args[j++] = args[i];
     }
-
-    num_args =0;
-    fflag = 0;
-    inn = NULL;
-    outt = NULL;
-    //reset prog args to null
-    for(int f = 0; f < 256; f++)
-      prog_args[f] = NULL;
-
-    //restart
-    cout << ">> ";
-    getline(&list_command, &size, stdin);
-    parse(list_command, args, num_args);
-
+    path = findcmd(args); //TODO: pass in path
+    if(path)
+    {
+      execute(prog_args, path, ifile, ofile, amp);
+      free(path);
+    }
+    //clean up
+    if(argc > 0)
+    {
+      for(i = 0; i < argc; ++i)
+      {
+        if(args && args[i]) free(args[i]);
+        args[i] = 0;
+      }
+    }
+    //reset counts, flags, and prog args then prompt and repeat
+    argc = 0;
+    ifile = ofile = NULL;
+    memset(prog_args, 0, MAX_ARGS * sizeof(char*));
+    parse(args, argc);
   }
-
-
+  //clean up
+  if(argc > 0)
+  {
+    for(i = 0; i < argc; ++i)
+    {
+      if(args && args[i]) free(args[i]);
+      args[i] = 0;
+    }
+  }
   return 0;
 }
 
-//////////////////////////////////////////////////////////////// 
-// get_args parse args into array seperate off command and flags
-//
-// Parameters:
-//   (char** prog_args, int & fflag, char** args)
-//
-// Pre:       command input is parsed
-//            
-//            
-//
-// Post:      command executes
-//             
-//             
-//
-// Returns:   void
-//
-// Called by: main
-// Calls:     none
-//
-void get_args(char** prog_args, int & fflag, char** args)
+/**
+ *
+ */
+bool parse(char** args, int & argc)
 {
-  int j = 0; //index
-  //read in arguments until first flag
-  if(fflag > 1)
+  bool rv = true;
+  char* buf = 0;
+  cout << "\n>> ";                  //prompt
+  getline(&buf, &ARG_MAX, stdin);   //read command line
+  size_t pos = strlen(buf), ap;
+  while(pos)
   {
-    for(int i = 1; i< fflag; i++)
+    --pos;
+    ap = 0;
+    while(!isspace(*buf++))
     {
-      if(*args[i] != '&')
-      {
-        prog_args[j] = args[i];
-        j++;
-      }
+      --pos;
+      ++ap;
     }
+    *(buf - 1) = NULL;
+    *args++ = buf - ap - 1;
+    ++argc;
   }
-
+  if(argc < 1) rv = false;
+  return rv;
 }
 
-//////////////////////////////////////////////////////////////// 
-// redirect_wait check for redirection and & flag
-//
-// Parameters:
-//   (char*& inn, char*& outt, int num_args, char** args, int & first_flag)
-//
-// Pre:       flags are passed in command line
-//            
-//            
-//
-// Post:      out put and input file names retrieved flagged &
-//             
-//             
-//
-// Returns:   bool
-//
-// Called by: main
-// Calls:     none
-//
-bool redirect_wait(char*& inn, char*& outt, int num_args, char** args, int & first_flag)
-{ 
-
-  //check for & flag
-  bool amp = (*args[num_args-1] == '&');
-
-  //get redirection files
-  for(int i=0; i<num_args; i++)
-  {
-    if(*args[i]== '>')
-    {
-      outt = args[i+1];
-
-      if(first_flag == 0)
-        first_flag = i;
-    }
-    else if(*args[i]== '<')
-    {
-      inn = args[i+1];
-
-      if(first_flag == 0)
-        first_flag = i;
-    }
-
-  }
-
-  if(first_flag == 0)
-    first_flag = num_args;
-
-  return amp;
-
-}
-
-//////////////////////////////////////////////////////////////// 
-// parse separtes string input line unto command and args found on line
-// in place of tokenizer
-// Parameters:  (char* buf, char** args, int & num_args)
-//   
-//
-// Pre:       passed in a comand list w/ args
-//             
-//             
-//
-// Post:      list separated into command and args
-//             
-//             
-//
-// Returns:   void
-//
-// Called by: main
-// Calls:     none
-//
-// http://www.cs.cf.ac.uk/Dave/C/node22.htm
-void parse(char* buf, char** args, int & num_args)
+/**
+ *
+ */
+bool execute(char** args, char* path, char* ifile, char* ofile, bool amp)
 {
-  while (*buf != NULL)
+  bool ret = true;
+  int fid, pid = fork();  //create child
+  if(pid < 0)
   {
-
-    while ((*buf == ' ') || (*buf == '\n'))
-      *buf++ = NULL;
-
-    /*
-     * Save the argument.
-     */
-    *args++ = buf;
-
-    /*
-     * Skip over the argument.
-     */
-    while ((*buf != NULL) && (*buf != ' ') && (*buf != '\n'))
-      buf++;
-
-    num_args++;
+    cerr << "ERROR: could not fork subprocess\n"; //exception
+    ret = false;
   }
-  num_args--;
-  *args = NULL;
-}
-
-//////////////////////////////////////////////////////////////// 
-// execute create child process forc and exevp comand
-//
-// Parameters:
-//   (char** args, char* path, char* inn, char* outt)
-//
-// Pre:       command input is parsed
-//            
-//            
-//
-// Post:      command executes and waits
-//             
-//             
-//
-// Returns:   void
-//
-// Called by: main
-// Calls:     execv system call fork system call 
-//
-void execute(char** args, char* path, char* inn, char* outt)
-{
-  int pid, status, fid;
-
-  const char* PATH=path;
-  const char* IN =inn;
-  const char* OUT=outt;
-
-  //create child
-  if ((pid == fork()) < 0)
+  else if (pid == 0)//child process
   {
-    //exception
-    perror("fork");
-    exit(1);
-  }
-
-  //child process
-  if (pid ==0)
-  {
-    //check for redirection
-    if(inn != NULL)
-    {
-      close(0);
-      fid = open(IN, O_RDONLY | O_NONBLOCK, 00222);
-    }
-
-    if(outt != NULL)
-    {
-      close(1);
-      fid = open(OUT, O_WRONLY | O_RDONLY | O_CREAT, 00666);
-    }
-
-    //execute command
-    execv(PATH, args);
-
-    //end redirection
-    if(inn != NULL)
-      close(0);
-    if(outt != NULL)
-      close(1);
-
+    //check for redirection, may need to close first
+    if(ifile) fid = open((const char*)ifile, O_RDONLY|O_NONBLOCK, 00222);
+    if(ofile) fid = open((const char*)ofile, O_WRONLY|O_RDONLY|O_CREAT, 00666);
+    execv((const char*)path, args); //execute command
+    if(ifile) close(0); //end redirection
+    if(ofile) close(1);
     perror(*args);
     exit(0);
   }
-  else
-    waitpid(pid, NULL, 0);
-
+  else if(!amp) waitpid(pid, NULL, 0);
+  else usleep(50000);
+  return ret;
 }
 
-//////////////////////////////////////////////////////////////// 
-// execute_a create child process forc and exevp comand
-//
-// Parameters:
-//   (char** args, char* path, char* inn, char* outt)
-//
-// Pre:       command input is parsed
-//            
-//            
-//
-// Post:      command executes no wait
-//             
-//             
-//
-// Returns:   void
-//
-// Called by: main
-// Calls:     execv system call fork system call 
-//
-void execute_a(char** args, char* path, char* inn, char* outt)
+/**
+ *
+ */
+bool canexec(const char* pPath)
 {
-  int pid, status, fid;
-
-  const char* PATH =path;
-  const char* IN =inn;
-  const char* OUT=outt;
-
-
-  //create child
-  if ((pid == fork()) < 0)
+  bool rv = false;
+  if(!access(pPath, F_OK))              //exists
   {
-    //exception 
-    perror("fork");
-    exit(1);
+    if(!access(pPath, X_OK)) rv = true; //executable
+    else cerr << "ERROR: " << pPath << " is not executable\n";
   }
-
-  //child process
-  if (pid ==0)
-  {
-    //check for redirection
-    if(inn != NULL)
-    {
-      close(0);
-      fid = open(IN, O_RDONLY | O_NONBLOCK, 00222);
-    }
-
-    if(outt != NULL)
-    {
-      close(1);
-      fid = open(OUT, O_WRONLY | O_RDONLY | O_CREAT, 00666);
-    }
-
-    //execute commands
-    execv(PATH, args);
-
-    //end redirection
-    if(inn != NULL)
-      close(0);
-    if(outt != NULL)
-      close(1);
-
-    perror(*args);
-    exit(0);
-  }
-  else
-    return;
-
+  else cerr << "ERROR: " << pPath << " does not exist\n";
+  return rv;
 }
 
-//////////////////////////////////////////////////////////////// 
-// f_path find path of given file name or directories
-//
-// Parameters:
-//   (char** args)
-//
-// Pre:       command input is parsed
-//            
-//            
-//
-// Post:      path to file returned
-//             
-//             
-//
-// Returns:   char *
-//
-// Called by: main
-// Calls:     strtok strcpy
-//
-char* f_path(char** args)
-{  
-  int i =0;          //index    
-  char* s_path= (char*) malloc (2048);    //path vairable
-  char* parsed_path [1000];      //array of paths
-  char path[1024];        //unparsed line from get PATH
+/**
+ *
+ */
+char* findcmd(char** args)
+{
+  int i = 0;                               //index
+  char* s_path = (char*) malloc (MAX_LEN); //path vairable
+  char* pp [MAX_PATH];                     //array of paths
+  char path[MAX_PATH];                     //unparsed line from get PATH
 
-  strcpy(path, getenv("PATH"));    
-
-  char* p = strtok(path, ":");
-  parsed_path[i] = p;
-
-  //loop until mo more paths to search or path is found
-  while(p != NULL)
-  {  //command is in path form of only the filename
-    if(*args[0] != '.' && *args[0] != '/')
+  memset(path, 0, MAX_PATH * sizeof(char));
+  strcpy(path, getenv("PATH"));
+  char* p = strtok(path, ":"), *ret = 0;
+  pp[i] = p;
+  while(p && !ret) //while paths to search and path not found
+  {
+    memset(s_path, 0, MAX_LEN * sizeof(char));
+    if(*args[0] != '.' && *args[0] != '/') //command form of filename
     {
-      strcpy(s_path, parsed_path[i]);
-      if(s_path[0] == '.')
-        strcpy(s_path, get_current_dir_name());
-
-      strcat(s_path, "/");
-      strcat(s_path, args[0]);
-      if(!access(s_path, F_OK))
-      {
-        if(!access(s_path, X_OK))
-        {
-          cout << s_path << " is executable" << endl;
-          return s_path;
-        }
-        else
-          cout << s_path << " is not executable" << endl;
-      }
-      else
-        cout << s_path << " File not found " << endl;
-
+      strcpy(s_path, pp[i]);
+      if(s_path[0] == '.') strcpy(s_path, get_current_dir_name());
+      strcat(strcat(s_path, "/"), args[0]);
+      if(canexec(s_path)) ret = s_path;
     }
-    else if(*args[0] =='/')  //command in form of /filename
+    else if(*args[0] =='/')                //command form of /filename
     {
-      if(!access(args[0], F_OK))
+      if(canexec(args[0]))
       {
-        if(!access(args[0], X_OK))
-        {
-          cout  << args[0] << " is executable"<< endl;
-          return(args[0]);
-        }
-        else
-        {
-          cout << args[0] << " is not executable" << endl;
-          return(NULL);
-        }
+        strcat(s_path, args[0]);
+        ret = s_path;
       }
-      else
-      {
-        cout << args[0] << " File not found " << endl;
-        return NULL;
-      }
-
+      else p = 0;
     }
-    else if(args[0][1] == '/')//command is in form of./filename
+    else if(args[0][1] == '/')             //command form of ./filename
     {
-      args[0]= &args[0][2];
+      args[0] = &args[0][2];
       strcpy(s_path, getenv("PWD"));
-      strcat(s_path, "/");
-      strcat(s_path, args[0]);
-      if(!access(s_path, F_OK))
-      {
-        if(!access(s_path, X_OK))
-        {
-          cout << s_path  << " is executable" << endl;
-          return(s_path);
-        }
-        else
-        {
-          cout << s_path << " is not executable" << endl;
-          return(NULL);
-        }
-      }
-      else
-      {
-        cout << s_path << " File not found" << endl;
-        return NULL;
-      }
-
+      strcat(strcat(s_path, "/"), args[0]);
+      if(canexec(s_path)) ret = s_path;
+      else p = 0;
     }
-    else  //command is given in the form ../filename
+    else                                   //command form of ../filename
     {
       args[0] = &args[0][3];
       strcpy(s_path, getenv("PWD"));
-
-      int dec = strlen(s_path);    //decrement counter
-
-      for(int j= dec; j>0; j--)
-      { 
-        if(s_path[j] == '/')
-          break;
-        s_path[j]=NULL;
-      }
-
+      int j = strlen(s_path);              //decrement counter
+      while(j > 0 && s_path[j] != '/') s_path[--j] = NULL;
       strcat(s_path, args[0]);
-      if(!access(s_path, F_OK))
-      {
-        if(!access(s_path, X_OK))
-        {
-          cout << s_path << " is executable " << endl;
-          return(s_path);
-        }
-        else
-        {
-          cout << s_path << " is not executable" << endl;
-          return NULL;
-        }
-      }
-      else 
-      {
-        cout << s_path << " File not found " << endl;
-        return NULL;
-      }
+      if(canexec(s_path)) ret = s_path;
+      else p = 0;
     }
-    i++;
-    p= strtok(NULL, ":");
-    parsed_path[i] = p;
+    if(!ret)
+    {
+      p = strtok(NULL, ":");
+      pp[++i] = p;
+    }
   }
-
-  return NULL;
+  if(!ret) free(s_path);
+  return ret;
 }
-
-
