@@ -29,6 +29,15 @@ bool parse(char** args, int & argc);
 bool execute(char** args, char* path, char* ifile, char* ofile, bool amp = 0);
 char* findcmd(char** args);
 
+void printargs(size_t argc, char** argv)
+{
+  cout << "argc: " << argc << "\nargv\n";
+  for(size_t i = 0; i <= argc; ++i)
+  {
+    if(argv[i])
+      cout << "argv[" << i << "]: " << argv[i] << endl;
+  }
+}
 /**
  *
  */
@@ -47,15 +56,28 @@ int main(int argc, char** argv)
 
   while((strcmp(args[0], "exit"))) //loop until exit
   {
-    for(i = 1; i < argc; ++i) //check for ampersand and redirection
+    for(i = 1, j = 0; i < argc; ++i) //check for ampersand and redirection
     {
-      if(*args[i]== '>') ofile = args[i+1];
-      else if(*args[i]== '>') ifile = args[i+1];
-      else if(*args[i]== '&') amp = true;
+      if(*args[i]== '<')
+      {
+        ifile = args[i+1];
+        ++j;
+      }
+      else if(*args[i]== '>')
+      {
+        ofile = args[i+1];
+        ++j;
+      }
+      else if(*args[i]== '&')
+      {
+        amp = true;
+        ++j;
+      }
+      if(ofile || ifile || amp) ++j;
     }
+    argc -= j - 1;
     for(i = 0, j = 0; i < argc; ++i)
     {
-      if(*args[i] == '&') continue;
       prog_args[j++] = args[i];
     }
     path = findcmd(args); //TODO: pass in path
@@ -65,14 +87,9 @@ int main(int argc, char** argv)
       free(path);
     }
     //clean up
-    if(argc > 0)
-    {
-      for(i = 0; i < argc; ++i)
-      {
-        if(args && args[i]) free(args[i]);
-        args[i] = 0;
-      }
-    }
+    for(i = 0; i < argc; ++i)
+      if(args[i]) free(args[i]);
+
     //reset counts, flags, and prog args then prompt and repeat
     argc = 0;
     ifile = ofile = NULL;
@@ -80,14 +97,8 @@ int main(int argc, char** argv)
     parse(args, argc);
   }
   //clean up
-  if(argc > 0)
-  {
-    for(i = 0; i < argc; ++i)
-    {
-      if(args && args[i]) free(args[i]);
-      args[i] = 0;
-    }
-  }
+  for(i = 0; i < argc; ++i)
+    if(args[i]) free(args[i]);
   return 0;
 }
 
@@ -97,29 +108,33 @@ int main(int argc, char** argv)
 bool parse(char** args, int & argc)
 {
   bool rv = true;
-  char* buf = 0;
-  cout << "\n>> ";                  //prompt
-  getline(&buf, &ARG_MAX, stdin);   //read command line
-  size_t pos = strlen(buf), ap;
-  while(pos)
+  char* buf = 0, *bptr = 0; //save buf so that it can be deallocated
+  cout << "\n>> "; //prompt
+  size_t ap, pos = getline(&buf, &ARG_MAX, stdin); //read command line
+  if(pos < 1) rv = false;
+  else
   {
-    --pos;
-    ap = 0;
-    while(!isspace(*buf++))
+    bptr = &(*buf);
+    while(pos)
     {
       --pos;
-      ++ap;
+      ap = 0;
+      while(buf && !isspace(*buf++))
+      {
+        --pos;
+        ++ap;
+      }
+      args[argc] = (char*)malloc(ap + 1);
+      memset(args[argc], 0, ap + 1);
+      memcpy(args[argc++], buf - ap, ap - 1);
     }
-    *(buf - 1) = NULL;
-    *args++ = buf - ap - 1;
-    ++argc;
+    free(bptr);
   }
-  if(argc < 1) rv = false;
   return rv;
 }
 
 /**
- *
+ * execute forks a process to execute the specified command
  */
 bool execute(char** args, char* path, char* ifile, char* ofile, bool amp)
 {
@@ -130,11 +145,19 @@ bool execute(char** args, char* path, char* ifile, char* ofile, bool amp)
     cerr << "ERROR: could not fork subprocess\n"; //exception
     ret = false;
   }
-  else if (pid == 0)//child process
+  else if(pid == 0) //child process
   {
     //check for redirection, may need to close first
-    if(ifile) fid = open((const char*)ifile, O_RDONLY|O_NONBLOCK, 00222);
-    if(ofile) fid = open((const char*)ofile, O_WRONLY|O_RDONLY|O_CREAT, 00666);
+    if(ifile)
+    {
+      close(0);
+      fid = open((const char*)ifile, O_RDONLY|O_NONBLOCK, 00222);
+    }
+    if(ofile)
+    {
+      close(1);
+      fid = open((const char*)ofile, O_WRONLY|O_RDONLY|O_CREAT, 00666);
+    }
     execv((const char*)path, args); //execute command
     if(ifile) close(0); //end redirection
     if(ofile) close(1);
@@ -147,7 +170,7 @@ bool execute(char** args, char* path, char* ifile, char* ofile, bool amp)
 }
 
 /**
- *
+ * canexec determines whether or not the specified file is executable
  */
 bool canexec(const char* pPath)
 {
@@ -196,19 +219,17 @@ char* findcmd(char** args)
     }
     else if(args[0][1] == '/')             //command form of ./filename
     {
-      args[0] = &args[0][2];
       strcpy(s_path, getenv("PWD"));
-      strcat(strcat(s_path, "/"), args[0]);
+      strcat(strcat(s_path, "/"), args[0] + 2);
       if(canexec(s_path)) ret = s_path;
       else p = 0;
     }
     else                                   //command form of ../filename
     {
-      args[0] = &args[0][3];
       strcpy(s_path, getenv("PWD"));
       int j = strlen(s_path);              //decrement counter
       while(j > 0 && s_path[j] != '/') s_path[--j] = NULL;
-      strcat(s_path, args[0]);
+      strcat(s_path, args[0] + 3);
       if(canexec(s_path)) ret = s_path;
       else p = 0;
     }
