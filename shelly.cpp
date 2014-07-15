@@ -23,23 +23,14 @@
 
 using namespace std;
 /******************************************************************************
- *                        Globals & Prototypes
- *****************************************************************************/
+ *                        Globals & Prototypes                                *
+ ******************************************************************************/
 bool parse(char** args, int & argc);
 bool execute(char** args, char* path, char* ifile, char* ofile, bool amp = 0);
 char* findcmd(char** args);
 
-void printargs(size_t argc, char** argv)
-{
-  cout << "argc: " << argc << "\nargv\n";
-  for(size_t i = 0; i <= argc; ++i)
-  {
-    if(argv[i])
-      cout << "argv[" << i << "]: " << argv[i] << endl;
-  }
-}
 /**
- *
+ * main
  */
 int main(int argc, char** argv)
 {
@@ -53,57 +44,48 @@ int main(int argc, char** argv)
 
   argc = 0;
   parse(args, argc); //parse command line
-
   while((strcmp(args[0], "exit"))) //loop until exit
   {
-    for(i = 1, j = 0; i < argc; ++i) //check for ampersand and redirection
+    for(i = 1, j = argc; i < j; ++i) //check for ampersand and redirection
     {
-      if(*args[i]== '<')
+      if(*args[i] == '<')
       {
         ifile = args[i+1];
-        ++j;
+        argc -= 2;
       }
-      else if(*args[i]== '>')
+      else if(*args[i] == '>')
       {
         ofile = args[i+1];
-        ++j;
+        argc -= 2;
       }
-      else if(*args[i]== '&')
+      else if(*args[i] == '&')
       {
         amp = true;
-        ++j;
+        argc -= 1;
       }
-      if(ofile || ifile || amp) ++j;
     }
-    argc -= j - 1;
-    for(i = 0, j = 0; i < argc; ++i)
-    {
-      prog_args[j++] = args[i];
-    }
+
+    for(i = 0, j = 0; i < argc; ++i) prog_args[j++] = args[i];
     path = findcmd(args); //TODO: pass in path
     if(path)
     {
       execute(prog_args, path, ifile, ofile, amp);
       free(path);
     }
-    //clean up
-    for(i = 0; i < argc; ++i)
-      if(args[i]) free(args[i]);
-
     //reset counts, flags, and prog args then prompt and repeat
+    for(i = 0; i < argc; ++i) if(args[i]) free(args[i]);
     argc = 0;
     ifile = ofile = NULL;
     memset(prog_args, 0, MAX_ARGS * sizeof(char*));
     parse(args, argc);
   }
-  //clean up
-  for(i = 0; i < argc; ++i)
-    if(args[i]) free(args[i]);
+  for(i = 0; i < argc; ++i) if(args[i]) free(args[i]);
+
   return 0;
 }
 
 /**
- *
+ * parses and counts the num command line args
  */
 bool parse(char** args, int & argc)
 {
@@ -124,7 +106,7 @@ bool parse(char** args, int & argc)
         --pos;
         ++ap;
       }
-      args[argc] = (char*)malloc(ap + 1);
+      args[argc] = (char*)malloc(ap++);
       memset(args[argc], 0, ap + 1);
       memcpy(args[argc++], buf - ap, ap - 1);
     }
@@ -147,7 +129,7 @@ bool execute(char** args, char* path, char* ifile, char* ofile, bool amp)
   }
   else if(pid == 0) //child process
   {
-    //check for redirection, may need to close first
+    //check for redirection
     if(ifile)
     {
       close(0);
@@ -185,7 +167,7 @@ bool canexec(const char* pPath)
 }
 
 /**
- *
+ * findcmd retrieves the full path of the command to be executed
  */
 char* findcmd(char** args)
 {
