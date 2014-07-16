@@ -171,56 +171,46 @@ bool canexec(const char* pPath)
  */
 char* findcmd(char** args)
 {
-  int i = 0;                               //index
+  int i = 0, j;                            //index
   char* s_path = (char*) malloc (MAX_LEN); //path vairable
   char* pp [MAX_PATH];                     //array of paths
   char path[MAX_PATH];                     //unparsed line from get PATH
+  bool ret = 0;
 
-  memset(path, 0, MAX_PATH * sizeof(char));
-  strcpy(path, getenv("PATH"));
-  char* p = strtok(path, ":"), *ret = 0;
-  pp[i] = p;
-  while(p && !ret) //while paths to search and path not found
+  memset(s_path, 0, MAX_LEN * sizeof(char));
+  if(**args != '.' && **args != '/')     //command form of filename
   {
-    memset(s_path, 0, MAX_LEN * sizeof(char));
-    if(*args[0] != '.' && *args[0] != '/') //command form of filename
+    memset(path, 0, MAX_PATH * sizeof(char));
+    strcpy(path, getenv("PATH"));
+    for( char* p = strtok(path, ":"); p && !ret; p = strtok(0, ":"))
     {
-      strcpy(s_path, pp[i]);
-      if(s_path[0] == '.') strcpy(s_path, get_current_dir_name());
-      strcat(strcat(s_path, "/"), args[0]);
-      if(canexec(s_path)) ret = s_path;
-    }
-    else if(*args[0] =='/')                //command form of /filename
-    {
-      if(canexec(args[0]))
-      {
-        strcat(s_path, args[0]);
-        ret = s_path;
-      }
-      else p = 0;
-    }
-    else if(args[0][1] == '/')             //command form of ./filename
-    {
-      strcpy(s_path, getenv("PWD"));
-      strcat(strcat(s_path, "/"), args[0] + 2);
-      if(canexec(s_path)) ret = s_path;
-      else p = 0;
-    }
-    else                                   //command form of ../filename
-    {
-      strcpy(s_path, getenv("PWD"));
-      int j = strlen(s_path);              //decrement counter
-      while(j > 0 && s_path[j] != '/') s_path[--j] = NULL;
-      strcat(s_path, args[0] + 3);
-      if(canexec(s_path)) ret = s_path;
-      else p = 0;
-    }
-    if(!ret)
-    {
-      p = strtok(NULL, ":");
-      pp[++i] = p;
+      if(*s_path == '.')
+        strcat(strcat(strcpy(s_path, getenv("PWD")), "/"), *args);
+      else strcpy(s_path, p);
+      ret = canexec(s_path);
+      if(!ret) memset(s_path, 0, MAX_LEN * sizeof(char));
     }
   }
-  if(!ret) free(s_path);
-  return ret;
+  else if(**args == '/')                 //command form of /filename
+  {
+    ret = canexec(strcat(s_path, *args));
+    ret = canexec(s_path);
+  }
+  else if(*(*args+1) == '/')            //command form of ./filename
+  {
+    strcat(strcpy(s_path, getenv("PWD")), *args + 1);
+    ret = canexec(s_path);
+  }
+  else                                   //command form of ../filename
+  {
+    strcpy(s_path, getenv("PWD"));
+    strcpy(strrchr(s_path, '/') + 1, *args + 3);
+    ret = canexec(s_path);
+  }
+  if(!ret)
+  {
+    free(s_path);
+    s_path = 0;
+  }
+  return s_path;
 }
