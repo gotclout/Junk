@@ -32,11 +32,15 @@ struct CmdData
   /**
    * Default Constructor
    */
-  CmdData()
+  CmdData() { init(); };
+
+  /**
+   * Configure vars;
+   */
+  bool init()
   {
-    memset(args, 0, sizeof(char*)*MAX_LEN);
-    amp = (bool)(argc = 0);
-    path = inf = outf = 0;
+    memset(args, 0, sizeof(char*)*MAX_LEN); //set everything to 0
+    return (path = inf = outf = (char*) !(&(amp = (bool)(argc = 0)))) == 0;
   };
 
   /**
@@ -62,10 +66,8 @@ struct CmdData
  */
 bool execute(CmdData & cmd)
 {
-  bool ret = true;
   int fid, pid = fork();       //create child
-  if(pid < 0) ret = false;
-  if(!ret) cerr << "ERROR: could not fork subprocess\n";
+  if(pid < 0) { cerr << "ERROR: could not fork subprocess\n"; return 0; }
   else if(pid == 0)            //child process
   {
     if(cmd.inf && !close(0)) fid=open(cmd.inf,O_RDONLY|O_NONBLOCK,00222);
@@ -78,7 +80,7 @@ bool execute(CmdData & cmd)
   }
   else if(!cmd.amp) waitpid(pid, NULL, 0);
   else usleep(50000);
-  return ret;
+  return 1;
 }
 
 /**
@@ -111,13 +113,13 @@ bool get_cmd_path(char* args, char* & cmdpth)
 {
   char errstr[MAX_LEN];
   int errno     = -1, i = 1;
-  char* pwdenv  = getenv("PWD");
+  char* pwdenv  = getenv("PWD"), *pthenv = 0;
   size_t pwdlen = strlen(pwdenv), pthenvlen, cpylen;
   cmdpth        = (char*) malloc(2*(MAX_LEN)*sizeof(char)); //path vairable
   memset(cmdpth, 0, 2*MAX_LEN*sizeof(char));
   if(*args != '.' && *args != '/')         //    cmd
   {
-    char* pthenv = getenv("PATH");
+    pthenv = getenv("PATH");
     char path[( pthenvlen = strlen(pthenv))+1];
     strncpy((char*)memset(path, 0, pthenvlen + 1), pthenv, pthenvlen);
     for(char* p = strtok(path, ":"); p && errno == -1; p = strtok(0, ":"))
@@ -130,10 +132,10 @@ bool get_cmd_path(char* args, char* & cmdpth)
   }
   else
   {
-    if(*args == '/') strcat(cmdpth, args);  //   /cmd
-    else if(*args == '.' && *args+i == '/') cpylen = pwdlen; // ./cmd or ../cmd
+    if(*args == '/') strcat(cmdpth, args);  //   /cmd else ./cmd
+    else if(*args == '.' && *args+i == '/') cpylen = pwdlen; // else ../cmd
     else if(*args+i++ == '.') cpylen = pwdlen - strlen(strrchr(pwdenv, '/'));
-    else ++i;
+    else ++i; //err
     if(i < 3) strcat(strncpy(cmdpth, pwdenv, cpylen), args+i);
     errno = canexec(cmdpth, errstr);
   }
@@ -148,22 +150,20 @@ bool get_cmd_path(char* args, char* & cmdpth)
  * @param int num_args, the num arguments in args
  * @return bool true if success, false otherwise
  */
-bool parse_args(char* args[], int & argc)
+bool parse_args(CmdData & d)//char* args[], int & argc)
 {
   char* buf = 0, *bptr = 0; //save buf so that it can be deallocated
   cout << "\n>> ";          //prompt
   size_t ap, len, pos = getline(&buf, &ARG_MAX, stdin); //read command line
-  if(pos < 1) return false;
+  if(!(d.argc = 0) && pos < 1) return false;
   else
   {
     bptr = &(*buf);
-    while(pos)
+    while(pos-- && !(ap = 0))
     {
-      --pos;
-      ap = 0;
       while(buf && !isspace(*buf++)){ --pos; ++ap; }
-      args[argc] = (char*)malloc((len = 1 + sizeof(char) * ap++));
-      strncpy((char*)memset(args[argc++], 0, len), buf - ap, ap - 1);
+      d.args[d.argc] = (char*)malloc((len = 1 + sizeof(char) * ap++));
+      strncpy((char*)memset(d.args[d.argc++], 0, len), buf - ap, ap - 1);
     }
     free(bptr);
   }
@@ -178,8 +178,8 @@ bool parse_args(char* args[], int & argc)
 int main(int argc, char** argv)
 {
   int i = 0, pos;
-  CmdData cmd, *cmdp = &cmd;
-  while(parse_args(cmd.args, cmd.argc) && strcmp(cmdp->args[0], "exit") != 0)
+  CmdData cmd;
+  while(cmd.init() && parse_args(cmd) && strcmp(cmd.at(0), "exit") != 0)
   {
     for(i = 0, pos = 0; i < cmd.argc; ++i) //check for & < > flags
     {
