@@ -25,22 +25,23 @@ using namespace std;
  */
 struct CmdData
 {
-  char* args[MAX_LEN], *path, *inf, *outf; //args, path to exec io redirect
+  char* args[MAX_LEN], *pth, *inf, *outf; //args, path to exec io redirect
   bool amp; //execute no wait
-  int argc; //num args
+  int argc , plen; //num args
 
   /**
    * Default Constructor
    */
-  CmdData() { init(); };
+  CmdData() {plen = 2*(MAX_LEN)*sizeof(char); pth = 0; init();};
 
   /**
-   * Configure vars;
+   * Initializes CmdData members
    */
   bool init()
   {
-    memset(args, 0, sizeof(char*)*MAX_LEN); //set everything to 0
-    return (path = inf = outf = (char*) !(&(amp = (bool)(argc = 0)))) == 0;
+    if(pth) { del(); } memset((pth = (char*)malloc(plen)), 0, plen);
+    memset(args, 0, sizeof(char*)*MAX_LEN);
+    return (inf = outf = (char*) !(&(amp = (bool)(argc = 0)))) == 0;
   };
 
   /**
@@ -51,7 +52,16 @@ struct CmdData
   /**
    * Retrieves the jth character of the ith argument
    */
-  char argat(int i = 0, int j = 0) { return at(i) ? *at(i) + j : '\0'; };
+  char argat(int i = 0, int j = 0) { return at(i) ? *(at(i) + j) : '\0'; };
+
+  /**
+   * Free allocated data
+   */
+  void del()
+  {
+    if(pth) free(pth); pth =0 ;
+    for(int i = 0; i < argc; ++i) if(at(i))free(at(i));
+  };
 };
 
 /**
@@ -66,19 +76,20 @@ struct CmdData
  */
 bool execute(CmdData & cmd)
 {
-  int fid, pid = fork();       //create child
+  int ifid, ofid;
+  pid_t pid = fork(); //create child
   if(pid < 0) { cerr << "ERROR: could not fork subprocess\n"; return 0; }
-  else if(pid == 0)            //child process
+  else if(pid == 0)             //child process
   {
-    if(cmd.inf && !close(0)) fid=open(cmd.inf,O_RDONLY|O_NONBLOCK,00222);
-    if(cmd.outf && !close(1))fid=open(cmd.outf,O_WRONLY|O_RDONLY|O_CREAT,00666);
-    execv(cmd.path, cmd.args); //execute command
-    if(cmd.inf) close(0);      //end redirection
-    if(cmd.outf) close(1);
+    if(cmd.inf) ifid=open(cmd.inf,O_RDONLY|O_NONBLOCK,00222);
+    if(cmd.outf )ofid=open(cmd.outf,O_WRONLY|O_RDONLY|O_CREAT,00666);
+    execv(cmd.pth, cmd.args);   //execute command
+    if(cmd.inf) close(ifid);    //end redirection
+    if(cmd.outf) close(ofid);
     perror(*cmd.args);
     exit(0);
   }
-  else if(!cmd.amp) waitpid(pid, NULL, 0);
+  else if(!cmd.amp) waitpid(pid, 0, 0);
   else usleep(50000);
   return 1;
 }
@@ -90,9 +101,8 @@ bool execute(CmdData & cmd)
  * @param bool errWarn indicates whether or not errors should be issued
  * @return int8_t 1 if ok, 0 if not executable -1 if DNE
  */
-int8_t canexec(const char* pPath, char err[])
+int8_t canexec(const char* pPath, char err[], int rv = -1)
 {
-  int8_t rv = -1;
   if(!access(pPath, F_OK) && !++rv)         //exists
   {
     if(!access(pPath, X_OK)) rv++; //executable
@@ -109,38 +119,34 @@ int8_t canexec(const char* pPath, char err[])
  *  first entry is the command to be executed
  * @return char* is a path to the command to be executed (may be null)
  */
-bool get_cmd_path(char* args, char* & cmdpth)
+bool get_cmd_pth(CmdData & cmd)
 {
-  char errstr[MAX_LEN];
+  char err[MAX_LEN];
   int errno     = -1, i = 1;
   char* pwdenv  = getenv("PWD"), *pthenv = 0;
-  size_t pwdlen = strlen(pwdenv), pthenvlen, cpylen;
-  cmdpth        = (char*) malloc(2*(MAX_LEN)*sizeof(char)); //path vairable
-  memset(cmdpth, 0, 2*MAX_LEN*sizeof(char));
-  if(*args != '.' && *args != '/')         //    cmd
+  size_t pwdln  = strlen(pwdenv), pthenvln, cpyln;
+  if(cmd.argat() != '.' && cmd.argat() != '/' && (pthenv = getenv("PATH"))) //cmd
   {
-    pthenv = getenv("PATH");
-    char path[( pthenvlen = strlen(pthenv))+1];
-    strncpy((char*)memset(path, 0, pthenvlen + 1), pthenv, pthenvlen);
-    for(char* p = strtok(path, ":"); p && errno == -1; p = strtok(0, ":"))
+    char pth[(pthenvln = strlen(pthenv))+1];
+    strncpy((char*)memset(pth, 0, pthenvln + 1), pthenv, pthenvln);
+    for(char* p = strtok(pth, ":"); p && errno == -1; p = strtok(0, ":"))
     {
-      if(*p == '.') strcat(strcat(strncpy(cmdpth, pwdenv, pwdlen), "/"), args);
-      else strcat(strcat(strncpy(cmdpth, p, strlen(p)), "/"), args);
-      errno = canexec(cmdpth, (char*)memset(errstr, 0, MAX_LEN));
-      if(errno == -1) memset(cmdpth, 0, 2*MAX_LEN*sizeof(char));
+      memset(cmd.pth, 0, cmd.plen);
+      if(*p == '.')strcat(strcat(strncpy(cmd.pth, pwdenv, pwdln), "/"), cmd.at());
+      else strcat(strcat(strncpy(cmd.pth, p, strlen(p)), "/"), cmd.at());
+      errno = canexec(cmd.pth, (char*)memset(err, 0, MAX_LEN));
     }
   }
-  else
+  else // ./cmd else ../ else err
   {
-    if(*args == '/') strcat(cmdpth, args);  //   /cmd else ./cmd
-    else if(*args == '.' && *args+i == '/') cpylen = pwdlen; // else ../cmd
-    else if(*args+i++ == '.') cpylen = pwdlen - strlen(strrchr(pwdenv, '/'));
-    else ++i; //err
-    if(i < 3) strcat(strncpy(cmdpth, pwdenv, cpylen), args+i);
-    errno = canexec(cmdpth, errstr);
+    if(cmd.argat() == '/'){ strcat(cmd.pth, cmd.at()); i = 0;}
+    else if(cmd.argat() == '.' && cmd.argat(0,i) == '/') cpyln = pwdln;
+    else if(cmd.argat(0,i++) == '.')cpyln = pwdln-strlen(strrchr(pwdenv, '/'));
+    else {cerr << "ERROR: Invalid command input\n"; return 0;}
+    if(i)strcat(strncpy(cmd.pth, pwdenv, cpyln), cmd.at()+i);
+    errno = canexec(cmd.pth, (char*)memset(err, 0, MAX_LEN));
   }
-  if(errno < 1) cerr << "ERROR: " << errstr;
-  return errno == 1;
+  return errno == 1 || !(cerr << "ERROR: " << err);
 }
 
 /**
@@ -150,24 +156,21 @@ bool get_cmd_path(char* args, char* & cmdpth)
  * @param int num_args, the num arguments in args
  * @return bool true if success, false otherwise
  */
-bool parse_args(CmdData & d)//char* args[], int & argc)
+bool get_args(CmdData & d, char* buf = 0)//char* args[], int & argc)
 {
-  char* buf = 0, *bptr = 0; //save buf so that it can be deallocated
-  cout << "\n>> ";          //prompt
-  size_t ap, len, pos = getline(&buf, &ARG_MAX, stdin); //read command line
-  if(!(d.argc = 0) && pos < 1) return false;
-  else
+  cout << "\n>> "; //prompt
+  size_t ap, len,  pos = getline(&buf, &ARG_MAX, stdin), cpos = pos;//read
+  if(!(d.argc = 0) && pos > 0)
   {
-    bptr = &(*buf);
     while(pos-- && !(ap = 0))
     {
       while(buf && !isspace(*buf++)){ --pos; ++ap; }
       d.args[d.argc] = (char*)malloc((len = 1 + sizeof(char) * ap++));
       strncpy((char*)memset(d.args[d.argc++], 0, len), buf - ap, ap - 1);
     }
-    free(bptr);
+    free((buf - cpos));
   }
-  return true;
+  return d.argc > 0;
 }
 
 /**
@@ -177,23 +180,18 @@ bool parse_args(CmdData & d)//char* args[], int & argc)
  */
 int main(int argc, char** argv)
 {
-  int i = 0, pos;
-  CmdData cmd;
-  while(cmd.init() && parse_args(cmd) && strcmp(cmd.at(0), "exit") != 0)
+  for(CmdData cmd; get_args(cmd) && strcmp(cmd.at(),"exit"); cmd.init())
   {
-    for(i = 0, pos = 0; i < cmd.argc; ++i) //check for & < > flags
+    for(int i = --argc; i < cmd.argc; ++i) //check for & < > flags
     {
       if(cmd.argat(i,0) == '<') cmd.inf = cmd.at(++i);
       else if(cmd.argat(i,0) == '>') cmd.outf = cmd.at(++i);
       else if(cmd.argat(i,0) == '&') cmd.amp = true;
-      else if(!cmd.inf && !cmd.outf && !cmd.amp)++pos;
+      else if(!cmd.inf && !cmd.outf && !cmd.amp) ++argc;
+      else if(cmd.at(argc))*cmd.args[argc] = '\0';
     }
-    if(pos && cmd.at(pos)) cmd.args[pos] = 0;
-    if(get_cmd_path(*cmd.args, cmd.path)) execute(cmd);
-    free(cmd.path);
-    for(i = 0; i < cmd.argc; ++i) if(cmd.at(i)) free(cmd.at(i));  //free args
+    if(get_cmd_pth(cmd)) execute(cmd);
   }
 
   return 0;
 }
-
