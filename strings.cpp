@@ -5,12 +5,14 @@
 
 using namespace std;
 
-const static string str     = "The quick brown fox jumps swiftly over the lazy brown dog at night\n";
-const static string uvowels = "ieayiiieaaaouyeeeeyayayayaiiiaaaeooouuuuuuuuaeiouy";
+const static string str     =
+  "The quick brown fox jumps swiftly over the lazy brown dog at night\n";
+const static string uvowels =
+  "ieayiiieaaaouyeeeeyayayayaiiiaaaeooouuuuuuuuaeiouy";
 const static string vowels  = "aeiouy";
 
-map<char, string> vmap;
-map<char, string>::iterator vmapIt;
+map<char, string> v;
+map<char, string>::iterator vIt;
 
 stringstream sstr;
 
@@ -36,30 +38,27 @@ string sortvowels()
 {
   string retVal = "    Vowel Map: ";
   int i = 0;
-  for(i; i < vowels.size(); ++i) vmap[vowels[i]] = "";
-
-  for(i = 0; i < uvowels.size(); ++i) vmap[uvowels[i]] += uvowels[i];
-
+  for( ; i < uvowels.size(); ++i) v[uvowels[i]] += uvowels[i];
   for(i = 0; i < vowels.size(); ++i)
   {
-    retVal += vmap[vowels[i]];
-    if(vmap[vowels[i]] != vmap[vowels[i+1]]) retVal += "\n               ";
+    retVal += v[vowels[i]];
+    if(v[vowels[i]] != v[vowels[i+1]]) retVal += "\n               ";
   }
   return retVal;
 }
 
 /**
- * Print the specified vowel in vmap
+ * Print the specified vowel in v
  */
 string printavowel(const char & c)
 {
   string retVal = "";
 
-  for(vmapIt = vmap.begin(); vmapIt != vmap.end(); ++vmapIt)
+  for(vIt = v.begin(); vIt != v.end(); ++vIt)
   {
-    if(vmapIt->first == c)
+    if(vIt->first == c)
     {
-      retVal += vmapIt->second + "\n";
+      retVal += vIt->second + "\n";
       break;
     }
   }
@@ -76,12 +75,7 @@ size_t find(const string & s)
        << "     Position: ";
   size_t pos = str.find(s);
   sstr << pos;
-  if(pos != string::npos)
-  {
-    cout << sstr.str() + "\n";
-    sstr.str("");
-    sstr.clear();
-  }
+  if(pos != string::npos) cout << sstr.str() + "\n";
   else cout << sstr.str() << "DNE\n";
 
   return pos;
@@ -92,16 +86,13 @@ size_t find(const string & s)
  */
 string replace(const string & s, const string & r)
 {
-  string tmp = str;
   cout << "\n  Replace Str: " << r << '\n';
+  string tmp = str;
   size_t pos = find(s);
 
-  if(pos != string::npos)
-  {
-    tmp = tmp.replace(pos, s.size(), r);
-    cout << "   Result Str: " <<  tmp;
-  }
-  
+  if(pos != string::npos) tmp = tmp.replace(pos, s.size(), r);
+  cout << "   Result Str: " <<  tmp;
+
   return tmp;
 }
 
@@ -127,3 +118,4 @@ int main(int argc, char** argv)
 
   return 0;
 }
+
