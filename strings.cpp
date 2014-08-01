@@ -109,6 +109,26 @@ string replaceall(const string & s, const string & r, string sstr = str)
 }
 
 /**
+ * Reverse the characters in s
+ */
+string reverseall(const string & s)
+{
+  string sstr = s;
+  size_t sz = sstr.size();
+
+  sstr += " ";
+  for(size_t i = 0; i < sz / 2 - 1; ++i)
+  {
+    sstr[sz] = sstr[i];
+    sstr[i] = sstr[sz - i - 1];
+    sstr[sz - i - 1] = sstr[sz];
+  }
+  sstr.erase(sz);
+
+  return sstr;
+}
+
+/**
  * Execute string functions
  */
 int main(int argc, char** argv)
@@ -133,7 +153,9 @@ int main(int argc, char** argv)
   align << left << ' ' << (*pfuncptr) ('a') << endl;
   for(int i = 1; i < sz; ++i)
     align << left << ' ' << printvowel(vowels[i]) << endl;
-  align << left << ' ' << printvowel('z') << "\nfin\n";
+  align << left << ' ' << printvowel('z') << endl;
+  align << right << "Reverse: " << endl;
+  align << right << ' ' << reverseall(str) <<  "\nfin\n";
 
   return 0;
 }
