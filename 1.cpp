@@ -5,14 +5,10 @@ using namespace std;
 
 int r_partition(int A[], int x, int lo, int hi)
 {
-  int mid =  lo + ((hi - lo) / 2);
+  int mid = (hi + lo) / 2;
 
-  if(mid == hi && A[mid] > x)
-    return mid - 1;
-  else if(mid == lo && A[mid] > x)
-    return 0;
-  else if(mid == lo)
-    return mid;
+  if(lo > hi)
+    return hi;
   else if(A[mid-1] <= x && A[mid ] > x)
     return mid - 1;
   else if(x < A[mid])
@@ -25,8 +21,6 @@ int i_partition(int A[], int x, int lo, int hi)
 {
   if(x < A[lo])
     return 0;
-  else if(x == A[lo])
-    return lo;
   else if(x >= A[hi])
     return hi;
 
@@ -35,7 +29,7 @@ int i_partition(int A[], int x, int lo, int hi)
 
   while(q < 0)
   {
-    mid =  lo + ((hi - lo) / 2);
+    mid =  (hi + lo) / 2;
 
     if(A[mid-1] <= x && A[mid ] > x)
       q = mid - 1;
