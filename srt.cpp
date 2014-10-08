@@ -9,9 +9,10 @@
 #include <iostream>
 #include <string.h>
 
-#include "Mutex.h"
+/** Open Source Timer Impl **/
+#include "Timer.h"
 
-static Mutex m;
+Timer t;
 
 /** no std::nonsense **/
 using namespace std;
@@ -27,23 +28,27 @@ using namespace std;
  * default: cycles = 1 unless user specified
  *
  *  argv[2]
- *  elems: indicates the number elems or size of the container to be sorted
- * default: elems = 9 unless user specified
+ *  n: indicates the number elems or size of the container to be sorted
+ * default: n = 9 unless user specified
  *
- * argv[3]
+ *  argv[3]
  *  thresh: indicates the value at which insertion sort may be more efficient
  *          for trivially small containers
- * default: -1, unused unless user specified
+ * default: 0, unused unless user specified
  ******************************************************************************/
-static int cycles =  1;
-static int elems =  9;
-static int thresh = -1;
+static int cycles =  10;//00;
+static int n =  25;
+static int thresh = 0;
 
 /** ivec is the Container to be sorted **/
 static vector<int> ivec;
 
 /** A string stream for manipulating string values                           **/
 stringstream sstr;
+
+/** the table header                                                         **/
+const char* header =
+  "   Cycle        Duration    ISort    Qsort    ISwap     QSwap\n\n";
 
 /*******************************************************************************
  *    MACRO: string stream manipulation operations
@@ -56,7 +61,7 @@ stringstream sstr;
 #define clsstr() sstr.str(""); sstr.clear();
 
 /**     MACRO to generate random values between 0 and elems * 10           **/
-#define genrand() rand() % (elems * 10)
+#define genrand() rand() % (n * 10)
 
 /**     MACRO template for sorting any container with template typename     **/
 #define value_type_t typename Container::value_type
@@ -66,22 +71,31 @@ stringstream sstr;
  */
 struct sstats
 {
+  /** num swaps in insertion sort **/
   int iswaps,
+  /** num swaps in quick sort **/
       qswaps,
+  /** num calls to insertion sort **/
       icalls,
+  /** num calls to quick sort **/
       qcalls;
 
   /**
    * Def construct
    */
-  sstats() { iswaps = qswaps = icalls = qcalls = 0; } ;
+  sstats() { init(); } ;
+
+  /**
+   * init:
+   */
+  void init() { iswaps = qswaps = icalls = qcalls = 0; } ;
 
   /**
    * Output operator overload
    */
   friend ostream& operator <<(ostream & o, sstats & s)
   {
-    o << "Rendering Current Statistics..."  << endl
+    o << "Rendering Current Statistics..."  << endl << endl
       << "insertion sort calls: " << s.icalls << endl
       << " swaps to completion: " << s.iswaps << endl
       << "    quick sort calls: " << s.qcalls << endl
@@ -163,10 +177,10 @@ Container qsort(Container & c, const size_t left, const size_t right)
          j = right;
   int  dif = (int) j - i;
 
-  //++stats.qcalls;
+  ++stats.qcalls;
   if(dif > 1)
   {
-     ++stats.qcalls;
+     //++stats.qcalls;
     if(dif < thresh)
     {
       isort(c, i, j);
@@ -177,17 +191,17 @@ Container qsort(Container & c, const size_t left, const size_t right)
       value_type_t pivot = c.at((left + right)/2);
       while(i < j)
       {
-        while(c.at(i) <= pivot && i < elems) i++;
-        while(c.at(j) >= pivot && j != 0) j--;
+        while(c.at(i) < pivot) i++;
+        while(c.at(j) > pivot) j--;
 
         if(i < j)
         {
-          swap(c, j, i);
+          swap(c, i++, j--);
           ++stats.qswaps;
         }
 
+        if( left < j  )  qsort(c, left, j);
         if( i < right )  qsort(c, i, right);
-        if( j > left  )  qsort(c, left, j);
       }
     }
   }
@@ -200,32 +214,32 @@ Container qsort(Container & c, const size_t left, const size_t right)
  */
 void render()
 {
-  cout << "Rendering..." << endl;
+  cerr << endl << "Rendering..." << endl;
 
   for(size_t i = 0; i < ivec.size(); ++i)
   {
-    cout << "ivec[" << i << "]:" << "\t" << ivec.at(i) << endl;
+    cerr << "ivec[" << i << "]:" << "\t" << ivec.at(i) << endl;
   }
 
-  cout << "Rendering Complete" << endl << endl;
+  cerr << "Rendering Complete" << endl << endl;
 }
 
 /**
- * populate:
+ * generate:
  *
  * @return
  */
-vector<int>& populate()
+vector<int>& generate()
 {
-  cout << "Generating..." << endl;
-  for(size_t i = 0; i < elems; ++i)
+  cout << endl << "Generating..." << endl;
+  for(size_t i = 0; i < n; ++i)
   {
     ivec.insert(ivec.begin(), genrand());
   }
 
   render();
 
-  cout << "Generation Complete" << endl;
+  cout << endl << "Generation Complete" << endl;
 
   return ivec;
 }
@@ -237,16 +251,27 @@ vector<int>& populate()
  */
 vector<int>& testsort()
 {
-  cout << "Testing..." << endl;
+  stringstream tss;
+
+  cout << endl << "Testing..." << endl;
   for(int i = 0; i < cycles; ++i)
   {
-    ivec = populate();
-    qsort(ivec, 0, elems - 1);
+    stats.init();
+    ivec = generate();
+    t.start();
+    qsort(ivec, 0, n - 1);
+    t.stop();
     render();
+
+    tss << setw(8) << setfill(' ') << setprecision(6)
+        << i << "        " << t.getDurationSecs() << "   "
+        << stats.icalls << "        " << stats.qcalls << "    "
+        << stats.iswaps << "         " << stats.qswaps << endl;
+
     ivec.clear();
   }
-
-  cout << stats << endl << "Testing Complete" << endl << endl;
+  cout << header << tss.str() << endl << endl
+       << "Testing Complete" << endl << endl;
 
   return ivec;
 }
@@ -258,15 +283,16 @@ vector<int>& testsort()
  */
 int main(int argc, char** argv)
 {
+  cout << endl;
   if(argc == 3)
   {
     strtoval(argv[1], cycles);
-    strtoval(argv[2], elems);
+    strtoval(argv[2], n);
     strtoval(argv[3], thresh);
   }
   else
   {
-    cout << "Using defaults for cycles, elems, and threshold" << endl
+    cout << "Using defaults for cycles, n, and threshold" << endl
          << "To specify test config execute with the following:" << endl
          << "./<prog name> <cycles> <elements> <threshold>" << endl
          << "   cycles: the number of times the test should be performed" << endl
@@ -279,8 +305,8 @@ int main(int argc, char** argv)
 
   cout << "Test Quick Sort" << endl
        << "   Cycles: " << cycles << endl
-       << " Elements: " << elems << endl
-       << "Threshold: " << thresh << endl;
+       << " Elements: " << n << endl
+       << "Threshold: " << thresh << endl << endl;
   testsort();
 
   return 0;
