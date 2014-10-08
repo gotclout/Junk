@@ -259,7 +259,8 @@ vector<int>& testsort()
     stats.init();
     ivec = generate();
     t.start();
-    qsort(ivec, 0, n - 1);
+    //qsort(ivec, 0, n - 1);
+    isort(ivec, 0, n-1);
     t.stop();
     render();
 
