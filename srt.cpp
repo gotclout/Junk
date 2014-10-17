@@ -9,12 +9,11 @@
 #include <iostream>
 #include <string.h>
 
-/** Open Source Timer Impl **/
+/** Open Source Timer Impl                                                   **/
 #include "Timer.h"
-
 Timer t;
 
-/** no std::nonsense **/
+/** no std::nonsense                                                         **/
 using namespace std;
 
 /******************************************************************************
@@ -28,27 +27,28 @@ using namespace std;
  * default: cycles = 1 unless user specified
  *
  *  argv[2]
- *  n: indicates the number elems or size of the container to be sorted
+ *       n: indicates the number elems or size of the container to be sorted
  * default: n = 9 unless user specified
  *
  *  argv[3]
- *  thresh: indicates the value at which insertion sort may be more efficient
+ *       M: indicates the value at which insertion sort may be more efficient
  *          for trivially small containers
  * default: 0, unused unless user specified
  ******************************************************************************/
-static int cycles =  10;//00;
-static int n =  25;
-static int thresh = 0;
+static int cycles = 1;//1000;
+static int n      = 31;
+static int M      = 10;
 
-/** ivec is the Container to be sorted **/
-static vector<int> ivec;
+/** ivec is the Container to be sorted                                       **/
+typedef vector<int> ivt;
+static ivt ivec;
 
 /** A string stream for manipulating string values                           **/
 stringstream sstr;
 
 /** the table header                                                         **/
 const char* header =
-  "   Cycle        Duration    ISort    Qsort    ISwap     QSwap\n\n";
+  "   Cycle        Duration    ISort    QSort    ISwap     QSwap\n\n";
 
 /*******************************************************************************
  *    MACRO: string stream manipulation operations
@@ -105,20 +105,19 @@ struct sstats
   };
 };
 
-/** Performance Statistics **/
+/** Performance Statistics                                                   **/
 static sstats stats;
 
 /**
  * swap: replaces the content of values in a container
  *
- * @param
- * @param
- * @return
+ * @param size_t lval is the position of the left obj to be swapped
+ * @param size_t rval is the position of the right obj to be swapped
+ * @return Container c is the modified container
  */
 template <class Container>
-Container swap(Container & p, const size_t lval, const size_t rval)
+Container& swap(Container & c, const size_t lval, const size_t rval)
 {
-  Container c = p;
   if(lval < c.size() && rval < c.size())
   {
     value_type_t tmp = c.at(lval);
@@ -126,37 +125,35 @@ Container swap(Container & p, const size_t lval, const size_t rval)
     c.at(rval)       = tmp;
   }
 
-  p = c;
   return c;
 }
-
 
 /**
  * isort: executes insertion sort algorithm
  *
  * @param Container c
- * @param
- * @param
+ * @param size_t beg
+ * @param size_t end
  *
- * @return
+ * @return Container is a copy of the sorted container from beg to end
  */
 template <class Container>
-Container isort(Container & c, const size_t beg, const size_t end)
+Container& isort(Container & c, const size_t beg, const size_t end)
 {
   size_t i  = beg,
          j  = 0,
          sz = end - beg;
 
-  int tmp;
-
-  for( ; i < sz; ++i)
+  for( ; i <= sz; ++i)
   {
+    value_type_t tmp = c.at(i);
     j = i;
-    while(j > beg && c.at(j-1) > c.at(j))
+    while(j > beg && c.at(j-1) > tmp)
     {
-      c = swap(c, j, j-1);
+      c.at(j) = c.at(--j);
       ++stats.iswaps;
     }
+    c.at(j) = tmp;
   }
 
   return c;
@@ -171,7 +168,7 @@ Container isort(Container & c, const size_t beg, const size_t end)
  * @return
  */
 template <class Container>
-Container qsort(Container & c, const size_t left, const size_t right)
+Container& qsort(Container & c, const size_t left, const size_t right)
 {
   size_t i = left,
          j = right;
@@ -180,10 +177,10 @@ Container qsort(Container & c, const size_t left, const size_t right)
   ++stats.qcalls;
   if(dif > 1)
   {
-     //++stats.qcalls;
-    if(dif < thresh)
+    //++stats.qcalls;
+    if(dif < M && dif + 1 != n)
     {
-      isort(c, i, j);
+      return isort(c, i, j);
       ++stats.icalls;
     }
     else
@@ -252,27 +249,31 @@ vector<int>& generate()
 vector<int>& testsort()
 {
   stringstream tss;
+  ivt v;
 
   cout << endl << "Testing..." << endl;
   for(int i = 0; i < cycles; ++i)
   {
     stats.init();
-    ivec = generate();
+    v = generate();
+    ivec = v;
+    render();
     t.start();
-    //qsort(ivec, 0, n - 1);
-    isort(ivec, 0, n-1);
+    // decrement end by 1 for containers indexed at 0
+    qsort(ivec, 0, n - 1);
     t.stop();
     render();
 
     tss << setw(8) << setfill(' ') << setprecision(6)
-        << i << "        " << t.getDurationSecs() << "   "
-        << stats.icalls << "        " << stats.qcalls << "    "
-        << stats.iswaps << "         " << stats.qswaps << endl;
+        << i               << "        "  << t.getDurationSecs() << "   "
+        << stats.icalls    << "        "  << stats.qcalls        << "    "
+        << stats.iswaps    << "         " << stats.qswaps        << endl;
 
     ivec.clear();
+    v.clear();
   }
   cout << header << tss.str() << endl << endl
-       << "Testing Complete" << endl << endl;
+       << "Testing Complete"  << endl << endl;
 
   return ivec;
 }
@@ -289,7 +290,7 @@ int main(int argc, char** argv)
   {
     strtoval(argv[1], cycles);
     strtoval(argv[2], n);
-    strtoval(argv[3], thresh);
+    strtoval(argv[3], M);
   }
   else
   {
@@ -307,7 +308,7 @@ int main(int argc, char** argv)
   cout << "Test Quick Sort" << endl
        << "   Cycles: " << cycles << endl
        << " Elements: " << n << endl
-       << "Threshold: " << thresh << endl << endl;
+       << "Threshold: " << M << endl << endl;
   testsort();
 
   return 0;
