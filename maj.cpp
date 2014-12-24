@@ -12,25 +12,21 @@ const int maxelem = 23; //num elements to generate
  */
 int majority(vector<int> & e)
 {
-  int m  = 0,        //majority value
-      mp = 0;        //majority position
+  int m  = 0;        //majority value
   map<int, int> kv;  //map key element value occurences
 
   for(int i = 0; i < maxelem; ++i)
   {
     kv[e[i]] += 1;
-    if(kv[e[i]] > m)
-    {
-      m  = kv[e[i]];
-      mp = e[i];
-    }
+    if(kv[e[i]] > m) m  = e[i];
   }
 
   //print
   cout << "map:\n";
-  for(int j = 0; j < maxelem/2; ++j) cout << j << " -> " << kv[j] << "\n";
+  int sz = maxelem/2, j = 0;
+  for( ; j < sz; ++j) cout << j << " -> " << kv[j] << "\n";
 
-  return kv[mp];
+  return m;
 }
 
 int main(int argc, char** argv)
