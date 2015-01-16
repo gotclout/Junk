@@ -162,7 +162,7 @@ bool get_args(CmdData & d, char* buf = 0)//char* args[], int & argc)
   size_t ap, len,  pos = getline(&buf, &ARG_MAX, stdin), cpos = pos;//read
   if(!(d.argc = 0) && pos > 0)
   {
-    while(pos-- && !(ap = 0))
+    while(pos-- && !(ap = 0)) //FIXME: ap = 0, WTF?
     {
       while(buf && !isspace(*buf++)){ --pos; ++ap; }
       d.args[d.argc] = (char*)malloc((len = 1 + sizeof(char) * ap++));
