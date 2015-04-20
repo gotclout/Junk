@@ -1,0 +1,58 @@
+using namespace std;
+
+struct node
+{
+  void* data;
+  node* next;
+};
+
+struct list
+{
+  node* head;
+  node* tail;
+};
+
+list* makelist()
+{
+  list* l = new list();
+
+  l->head = l->tail = 0;
+
+  for(int i = 0; i < 10; i++)
+  {
+    node* n = new node();
+    n->data = new int;
+    n->next = 0;
+    memcpy(n->data, &i, sizeof(int));
+    if(!l->head)
+      l->head = l->tail = n;
+    else
+    {
+      l->tail->next = n;
+      l->tail = n;
+    }
+  }
+
+  return l;
+}
+
+void printlist(list* & l)
+{
+  if(l)
+  {
+    node* curr = l->head;
+    while(curr)
+    {
+      cout << *((int*)(curr->data)) << endl;
+      curr = curr->next;
+    }
+  }
+}
+
+int main(char** argv, int argc)
+{
+  list* l = makelist();
+  printlist(l);
+
+  return 0;
+}
