@@ -117,7 +117,7 @@ string reverseall(const string & s)
   size_t sz = sstr.size();
 
   sstr += " ";
-  for(size_t i = 0; i < sz / 2 - 1; ++i)
+  for(size_t i = 0; i < sz / 2; ++i)
   {
     sstr[sz] = sstr[i];
     sstr[i] = sstr[sz - i - 1];
