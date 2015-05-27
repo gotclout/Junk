@@ -12,7 +12,15 @@
 
 /** Open Source Timer Impl                                                   **/
 #include "Timer.h"
-Timer t, ist, oqt;
+
+/** Timers                                                                   **/
+Timer qst, ist, oqt, oit;
+
+int sav[] = {152, 191, 1, 88, 77, 198, 122, 38, 169, 55, 24, 65, 86, 8, 68, 65, 30, 142, 133, 92, 134};
+
+
+/** timer sums over cycles                                                   **/
+double isum, oisum, qsum, oqsum;
 
 /** no std::nonsense                                                         **/
 using namespace std;
@@ -34,15 +42,19 @@ using namespace std;
  *  argv[3]
  *       M: indicates the value at which insertion sort may be more efficient
  *          for trivially small containers
+ *
+ * argv[4]
+ *      D: indicates whether or not to use the same values for each cycle
  * default: 0, unused unless user specified
  ******************************************************************************/
-static int cycles = 1;//1000;
-static int n      = 31;
-static int M      = 10;
+static int cycles = 65;
+static int n      = 201;
+static int M      = sqrt(n + 0.0)/2;
+static bool D     = false;
 
 /** ivec is the Container to be sorted                                       **/
 typedef vector<int> ivt;
-ivt ivec;
+ivt isv, oqv, oiv, qsv, ivec;
 
 /** A string stream for manipulating string values                           **/
 stringstream sstr;
@@ -145,14 +157,14 @@ Container& isort(Container & c, const size_t beg, const size_t end)
   size_t       j,
                sz = end - beg + 1;
 
-      ++stats.icalls;
-      cout << "isort: " << left << "-" << right << endl;
+  ++stats.icalls;
   for(size_t i = beg; i < sz; ++i)
   {
     x = c.at(i);
     j = i;
     while(j > beg && c.at(j-1) > x)
     {
+      //cout << "swap: " << c[j] << "<->" << c[j-1] << endl;
       c.at(j) = c.at(j-1);
       j = j - 1;
       ++stats.iswaps;
@@ -163,18 +175,68 @@ Container& isort(Container & c, const size_t beg, const size_t end)
   return c;
 }
 
+/**
+ *
+ */
 template <class Container>
-Container& oqsort(Container & c, const size_t left, const size_t right, bool fin = 0)
+Container& oisort(Container & c, const size_t beg, const size_t end)
+{
+  value_type_t x;
+  size_t       j,
+               sz = end - beg + 1;
+
+  value_type_t tmp;
+  ++stats.icalls;
+  for(size_t i = beg; i < sz; ++i)
+  {
+    j = i;
+    while(j > beg && c.at(j-1) > c.at(j))
+    {
+      tmp = c.at(j);
+      c.at(j) = c.at(j-1);
+      c.at(j-1) = tmp;
+      j = j - 1;
+      ++stats.iswaps;
+    }
+  }
+
+  return c;
+}
+
+/**
+ *
+ */
+size_t Pivot(const size_t left, const size_t right)
+{
+  size_t mid = ((right + left/2));
+
+  if(mid == 0) mid = 1;
+
+  if((right - 2) - (left + 2) > 2)
+  {
+    mid  += ((right - 2) - (left + 2)) ;
+    mid /= 2;
+  }
+
+  cout <<  "left : " << left << " right : " << right << " piv : " << mid << endl;
+
+  while(mid > n) mid /= 2;
+  return mid;
+}
+
+/**
+ *
+ */
+template <class Container>
+Container& oqsort(Container & c, const size_t left, const size_t right)
 {
   size_t i = left,
          j = right;
-  int  dif = (int) j - i;
 
   if(j - i > 1)
   {
-    cout << "qsort: " << left << "-" << right << endl;
     ++stats.qcalls;
-    value_type_t pivot = c.at((left + right)/2);
+    value_type_t pivot = c.at((left + right)/2), tmp;
     while(i < j)
     {
       while(c.at(i) < pivot) i++;
@@ -182,17 +244,22 @@ Container& oqsort(Container & c, const size_t left, const size_t right, bool fin
 
       if(i < j)
       {
-        swap(c, i++, j--);
+        //swap(c, i++, j--);
+        tmp = c[i];
+        c[i++] = c[j];
+        c[j--] = tmp;
+        //i++; j--;
         ++stats.qswaps;
       }
+      if(left < j)  oqsort(c, left, j);
+      if(i < right) oqsort(c, i, right);
 
-      if(left < j)  oqsort(c, left, j, fin);
-      if(i < right) oqsort(c, i, right, fin);
     }
   }
 
   return c;
 }
+
 /**
  * qsort: executes quicksort algorithm selecting the midpoint of a container
  *        as a pivot value
@@ -202,35 +269,37 @@ Container& oqsort(Container & c, const size_t left, const size_t right, bool fin
  * @return
  */
 template <class Container>
-Container& qsort(Container & c, const size_t left, const size_t right, bool fin = 0)
+Container& qsort(Container & c, const size_t left, const size_t right)
 {
   size_t i = left,
-         j = right;
-  int  dif = (int) j - i;
+         j = right, mid, dif = j - i;
 
-  if(j - i > 1)
+  if(dif > 1)
   {
-    cout << "qsort: " << left << "-" << right << endl;
     ++stats.qcalls;
-    if(right - left < M)
+
+    if(dif < M)
     {
-      isort(c, left, right);
-      return c;
+      isort(c, i, j);
     }
-    value_type_t pivot = c.at((left + right)/2);
+
+    mid = ((i + j)/2);
+    value_type_t pivot = max(max(c[mid], c[mid-1]), c[mid+1]), tmp;
+
     while(i < j)
     {
-      while(c.at(i) < pivot) i++;
-      while(c.at(j) > pivot) j--;
+      while(c[i] < pivot) i++;
+      while(pivot < c[j]) j--;
 
       if(i < j)
       {
-        swap(c, i++, j--);
+        tmp = c[i];
+        c[i++] = c[j];
+        c[j--] = tmp;
         ++stats.qswaps;
+        if(left < j)  qsort(c, left, j);
       }
-
-      if(left < j)  qsort(c, left, j, fin);
-      if(i < right)  qsort(c, i, right, fin);
+      if(i < right) qsort(c, i, right);
     }
   }
 
@@ -240,13 +309,14 @@ Container& qsort(Container & c, const size_t left, const size_t right, bool fin 
 /**
  * render:
  */
-void render()
+template <class Container>
+void render(Container & c)
 {
   cerr << endl << "Rendering..." << endl;
 
-  for(size_t i = 0; i < ivec.size(); ++i)
+  for(size_t i = 0; i < c.size(); ++i)
   {
-    cerr << "ivec[" << i << "]:" << "\t" << ivec.at(i) << endl;
+    cerr << "c[" << i << "]:" << "\t" << c.at(i) << endl;
   }
 
   cerr << "Rendering Complete" << endl << endl;
@@ -257,19 +327,126 @@ void render()
  *
  * @return
  */
-vector<int>& generate()
+vector<int>& generate(bool usestatic = 0)
 {
   cout << endl << "Generating..." << endl;
+  ivec.clear();
   for(size_t i = 0; i < n; ++i)
   {
-    ivec.insert(ivec.begin(), genrand());
+    if(usestatic) ivec.insert(ivec.begin(), sav[i]);
+    else ivec.insert(ivec.begin(), genrand());
   }
 
-  render();
+  render(ivec);
 
   cout << endl << "Generation Complete" << endl;
 
   return ivec;
+}
+
+/**
+ *
+ */
+void statstr(stringstream & tss, Timer & t, int i)
+{
+  tss << setw(8) << setfill(' ') << setprecision(6) << right
+      << i
+      << setw(16) << setfill(' ') << setprecision(6) << right
+      << t.getDurationSecs()
+      << setw(9) << setfill(' ') << setprecision(6) << right
+      << stats.icalls
+      << setw(9) << setfill(' ') << setprecision(6) << right
+      << stats.qcalls
+      << setw(9) << setfill(' ') << setprecision(6) << right
+      << stats.iswaps
+      << setw(10) << setfill(' ') << setprecision(6) << right
+      << stats.qswaps
+      << setw(10) << setfill(' ') << setprecision(6) << right
+      << stats.iswaps + stats.qswaps << endl;
+}
+
+/**
+ *
+ */
+template <class Container>
+Container& testisort(Container & c, stringstream & tss, int i)
+{
+  stats.init();
+  ist.start();
+  isort(c, 0, n - 1);
+  ist.stop();
+  isum += ist.getDurationSecs();
+  render(c);
+
+  statstr(tss, ist, i);
+
+  return c;
+}
+
+/**
+ *
+ */
+template <class Container>
+Container& testoisort(Container & c, stringstream & tss, int i)
+{
+  stats.init();
+  oit.start();
+  oisort(c, 0, n - 1);
+  oit.stop();
+  oisum += oit.getDurationSecs();
+  render(ivec);
+
+  statstr(tss, oit, i);
+
+  return c;
+}
+
+/**
+ *
+ */
+template <class Container>
+Container& testqsort(Container & c, stringstream & tss, int i)
+{
+  stats.init();
+  qst.start();
+  qsort(c, 0, n - 1);
+  qst.stop();
+  qsum += qst.getDurationSecs();
+  render(c);
+
+  statstr(tss, qst, i);
+
+  return c;
+}
+
+/**
+ *
+ */
+template <class Container>
+Container& testoqsort(Container & c, stringstream & tss, int i)
+{
+  stats.init();
+  oqt.start();
+  oqsort(c, 0, n - 1);
+  oqt.stop();
+  oqsum += oqt.getDurationSecs();
+  render(c);
+
+  statstr(tss, oqt, i);
+
+  return c;
+}
+
+/**
+ *
+ */
+void clear()
+{
+  isv.clear();
+  oiv.clear();
+  qsv.clear();
+  oqv.clear();
+  ivec.clear();
 }
 
 /**
@@ -280,53 +457,29 @@ vector<int>& generate()
 vector<int>& testsort()
 {
   stringstream tss;
-  ivt isv, oqv;
 
   cout << endl << "Testing..." << endl;
+  isum = oisum = qsum = oqsum = 0;
   for(int i = 0; i < cycles; ++i)
   {
-    stats.init();
-    generate();
-    isv = oqv = ivec;
-    //ivec = v;
-    render();
-    t.start();
-    // decrement end by 1 for containers indexed at 0
-    qsort(ivec, 0, n - 1);
-    t.stop();
-    render();
+    qsv = isv = oqv = oiv = generate(0);
 
-    tss << setw(8) << setfill(' ') << setprecision(6)
-        << i               << "        "  << t.getDurationSecs() << "   "
-        << stats.icalls    << "        "  << stats.qcalls        << "    "
-        << stats.iswaps    << "         " << stats.qswaps        << endl;
+    testisort(isv, tss, i);
+    testoisort(oiv, tss, i);
+    testoqsort(qsv, tss, i);
+    testqsort(oqv, tss, i);
 
-    ivec.clear();
-    stats.init();
-    ist.start();
-    ivec = isort(isv, 0, n -1);
-    ist.stop();
-    render();
-
-    tss << setw(8) << setfill(' ') << setprecision(6)
-        << i               << "        "  << ist.getDurationSecs() << "   "
-        << stats.icalls    << "            "  << stats.qcalls        << "    "
-        << stats.iswaps    << "         " << stats.qswaps        << endl;
-    stats.init();
-    oqt.start();
-    ivec = oqsort(oqv, 0, n -1);
-    oqt.stop();
-    render();
-
-    tss << setw(8) << setfill(' ') << setprecision(6)
-        << i               << "        "  << oqt.getDurationSecs() << "   "
-        << stats.icalls    << "          "  << stats.qcalls        << "       "
-        << stats.iswaps    << "         " << stats.qswaps        << endl;
-    //v.clear();
+    clear();
   }
-  cout << header << tss.str() << endl << endl
+
+  cout << header    << tss.str()      << endl << endl
+       << "IAVG:  " << isum/cycles    << endl
+       << "QAVG:  " << qsum/cycles    << endl
+       << "OIAVG: " << oisum/cycles   << endl
+       << "OQAVG: " << oqsum/cycles   << endl
        << "Testing Complete"  << endl << endl;
 
+  oqv.clear();
   return ivec;
 }
 
@@ -356,12 +509,13 @@ int main(int argc, char** argv)
 
   srand(time(NULL));  //seed random number generator
 
-  cout << "Test Quick Sort" << endl
+  cout << "Test Sort" << endl
        << "   Cycles: " << cycles << endl
        << " Elements: " << n << endl
        << "Threshold: " << M << endl << endl;
   testsort();
 
+  cout << "M: " << M << endl;
   return 0;
 }
 
