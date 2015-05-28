@@ -9,6 +9,7 @@
 #include <iostream>
 #include <string.h>
 #include <stdlib.h>
+#include <limits>
 
 /** Open Source Timer Impl                                                   **/
 #include "Timer.h"
@@ -16,7 +17,8 @@
 /** Timers                                                                   **/
 Timer qst, ist, oqt, oit;
 
-int sav[] = {152, 191, 1, 88, 77, 198, 122, 38, 169, 55, 24, 65, 86, 8, 68, 65, 30, 142, 133, 92, 134};
+int sav[] = {152, 191, 1, 88, 77, 198, 122, 38, 169, 55, 24, 65, 86, 8, 68,
+             65, 30, 142, 133, 92, 134};
 
 
 /** timer sums over cycles                                                   **/
@@ -47,9 +49,10 @@ using namespace std;
  *      D: indicates whether or not to use the same values for each cycle
  * default: 0, unused unless user specified
  ******************************************************************************/
-static int cycles = 65;
-static int n      = 201;
-static int M      = sqrt(n + 0.0)/2;
+static int cycles = 3;
+static int n      = 21;
+//static int M      = n - (n/2);
+static int M      = n - sqrt(n + 0.0);
 static bool D     = false;
 
 /** ivec is the Container to be sorted                                       **/
@@ -164,7 +167,6 @@ Container& isort(Container & c, const size_t beg, const size_t end)
     j = i;
     while(j > beg && c.at(j-1) > x)
     {
-      //cout << "swap: " << c[j] << "<->" << c[j-1] << endl;
       c.at(j) = c.at(j-1);
       j = j - 1;
       ++stats.iswaps;
@@ -285,6 +287,7 @@ Container& qsort(Container & c, const size_t left, const size_t right)
 
     mid = ((i + j)/2);
     value_type_t pivot = max(max(c[mid], c[mid-1]), c[mid+1]), tmp;
+    //value_type_t pivot = c[mid], tmp;
 
     while(i < j)
     {
@@ -327,21 +330,22 @@ void render(Container & c)
  *
  * @return
  */
-vector<int>& generate(bool usestatic = 0)
+template <class Container>
+Container& generate(Container & c, bool usestatic = 0)
 {
   cout << endl << "Generating..." << endl;
-  ivec.clear();
+  c.clear();
   for(size_t i = 0; i < n; ++i)
   {
-    if(usestatic) ivec.insert(ivec.begin(), sav[i]);
-    else ivec.insert(ivec.begin(), genrand());
+    if(usestatic) c.insert(c.begin(), sav[i]);
+    else c.insert(c.begin(), genrand());
   }
 
-  render(ivec);
+  render(c);
 
   cout << endl << "Generation Complete" << endl;
 
-  return ivec;
+  return c;
 }
 
 /**
@@ -376,6 +380,7 @@ Container& testisort(Container & c, stringstream & tss, int i)
   isort(c, 0, n - 1);
   ist.stop();
   isum += ist.getDurationSecs();
+  cout << "Sorted\n";
   render(c);
 
   statstr(tss, ist, i);
@@ -394,7 +399,8 @@ Container& testoisort(Container & c, stringstream & tss, int i)
   oisort(c, 0, n - 1);
   oit.stop();
   oisum += oit.getDurationSecs();
-  render(ivec);
+  cout << "Sorted\n";
+  render(c);
 
   statstr(tss, oit, i);
 
@@ -412,6 +418,7 @@ Container& testqsort(Container & c, stringstream & tss, int i)
   qsort(c, 0, n - 1);
   qst.stop();
   qsum += qst.getDurationSecs();
+  cout << "Sorted\n";
   render(c);
 
   statstr(tss, qst, i);
@@ -430,6 +437,7 @@ Container& testoqsort(Container & c, stringstream & tss, int i)
   oqsort(c, 0, n - 1);
   oqt.stop();
   oqsum += oqt.getDurationSecs();
+  cout << "Sorted\n";
   render(c);
 
   statstr(tss, oqt, i);
@@ -454,7 +462,8 @@ void clear()
  *
  * @return
  */
-vector<int>& testsort()
+template <class Container>
+Container& testsort(Container & c)
 {
   stringstream tss;
 
@@ -462,7 +471,7 @@ vector<int>& testsort()
   isum = oisum = qsum = oqsum = 0;
   for(int i = 0; i < cycles; ++i)
   {
-    qsv = isv = oqv = oiv = generate(0);
+    qsv = isv = oqv = oiv = generate(c);
 
     testisort(isv, tss, i);
     testoisort(oiv, tss, i);
@@ -472,14 +481,28 @@ vector<int>& testsort()
     clear();
   }
 
-  cout << header    << tss.str()      << endl << endl
-       << "IAVG:  " << isum/cycles    << endl
-       << "QAVG:  " << qsum/cycles    << endl
-       << "OIAVG: " << oisum/cycles   << endl
-       << "OQAVG: " << oqsum/cycles   << endl
-       << "Testing Complete"  << endl << endl;
+  double  iavg = isum/cycles ,  qavg = qsum/cycles,
+         oiavg = oisum/cycles, oqavg = oqsum/cycles,
+         iqdif = max(iavg, qavg)  - min(iavg, qavg),
+         oqdif = max(qavg, oqavg) - min(qavg, oqavg);
+
+  cout << header    << tss.str() << endl << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "IAVG:  " << iavg      << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "QAVG:  " << qavg      << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "OIAVG: " << oiavg     << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "OQAVG: " << oqavg     << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "IQDIF: " << iqdif     << endl
+       << setprecision(std::numeric_limits< double >::digits10) << setfill('0')
+       << "OQDIF: " << oqdif     << endl
+       << "Testing Complete"     << endl << endl;
 
   oqv.clear();
+
   return ivec;
 }
 
@@ -513,9 +536,9 @@ int main(int argc, char** argv)
        << "   Cycles: " << cycles << endl
        << " Elements: " << n << endl
        << "Threshold: " << M << endl << endl;
-  testsort();
+  testsort(ivec);
 
-  cout << "M: " << M << endl;
+  cout << "M: " << M << " N: " << n << endl;
   return 0;
 }
 
