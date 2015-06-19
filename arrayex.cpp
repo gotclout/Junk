@@ -7,6 +7,36 @@
 using namespace std;
 
 /**
+ * Reverse substring in place
+ */
+char* reverse_words(char* & str)
+{
+  // IN:  "abc def dog."  -->
+  // OUT: "cba fed .god"
+
+  if(str == NULL) return str;
+
+  size_t sz = 0, strsz = strlen(str), i;
+
+  for( char* sub = strtok(str, " "); sub != NULL; sub = strtok(NULL, " ") )
+  {
+    sz = strlen(sub);
+
+    for( i = 0; i < sz / 2; ++i )
+    {
+      str[strsz]      = sub[i];
+      sub[i]          = sub[sz - 1 - i];
+      sub[sz - 1 - i] = str[strsz];
+    }
+
+    sub[sz]    = ' ';
+    str[strsz] = 0;
+  }
+
+  return str;
+}
+
+/**
  * Reverse a cstring in place
  */
 void reverseinplace(const char* c, int i = 0)
