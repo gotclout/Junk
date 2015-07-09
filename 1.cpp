@@ -29,9 +29,10 @@ int i_partition(int A[], int x, int lo, int hi)
 
   while(q < 0)
   {
-    mid =  (hi + lo) / 2;
+    // mid =  (hi + lo) / 2; ?overflow
+    mid =  lo + (hi + lo) / 2;
 
-    if(A[mid-1] <= x && A[mid ] > x)
+    if(A[mid-1] <= x && A[mid] > x)
       q = mid - 1;
     else if(x < A[mid])
       hi = mid - 1;
