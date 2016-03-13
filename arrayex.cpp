@@ -53,7 +53,7 @@ void reverseinplace(const char* c, int i = 0)
   {
     cp[sz] = c[i];
     cp[i] = c[sz - 1 - i];
-    cp[sz - 1 - i] = c[sz];
+    cp[sz - 1 - i] = cp[sz];
   }
 
   cp[sz] = 0;
@@ -81,16 +81,23 @@ void arrayptrs(int a[], int* & a1, int** & a2, int sz)
   cout << "PTRF\n";
   int i = 0, j = 0;
   a1 = new int[len]; //dynamic int array
+
+  //copy a to a1
   for(i = 0; i < sz; ++i)  a1[i] = a[i];
   cout << "   a1: ";
+
+  //print a1
   for(i = 0; i < sz; ++i) cout << a1[i] << ' ';
   cout << '\n';
 
-  int a3[sz][sz]; //2d array
+  int a3[sz][sz];
+
+  //copy a1 into 2d array a3
   for(i = 0; i < sz; ++i)
     for( j = 0; j < sz; ++j)
       a3[i][j] = a1[j];
 
+  //print a3
   for(i = 0; i < sz; ++i)
   {
     cout <<  "a3[" << i << "]: ";
@@ -134,7 +141,7 @@ void cstrout(const char* s)
 {
   cout << "PRINTF\n";
   size_t sz = strlen(s);
-  const char* fmt = "%s%s";
+  const char* fmt = "%s";
   cout << "  STR: " << s << "\n  FMT: " << fmt << "\n  LEN: " << sz << '\n';
   char a5[sz + 1];
   memset(a5, 0, sz + 1);
@@ -166,4 +173,3 @@ int main(int argc, char* argv[])
 
   return 0;
 }
-
