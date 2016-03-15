@@ -6,6 +6,7 @@
 
 using namespace std;
 
+
 /**
  * Reverse substring in place
  */
@@ -71,6 +72,61 @@ void arrayinit(int a[], int sz, int i = 0)
   cout << "    a: ";
   for(i = 0; i < sz; ++i) cout << a[i] << ' ';
   cout << '\n';
+}
+
+/**
+ * Find the middle value of 2 sorted arrays
+ */
+int arraymid(int aa[], int bb[])
+{
+  int a[] = { 9, 11, 23, 40, 51 };
+  int b[] = { 4, 7, 15, 16, 52, 100 };
+  cout << "\nMIDF\n";
+
+  size_t asz = sizeof(a)/sizeof(*a);
+  size_t bsz = sizeof(b)/sizeof(*b);
+
+  int csz = asz + bsz;
+  int c[csz];
+  int cpos, apos, bpos;
+
+  cout << "   ASZ: " << asz << "\n   BSZ: "
+       << bsz << "\n   CSZ: " << csz << endl;
+
+  apos = bpos = cpos = 0;
+
+  while(cpos < csz)
+  {
+    if(apos == asz)
+    {
+      c[cpos] = b[bpos];
+      bpos++;
+    }
+    else if (bpos == bsz)
+    {
+      c[cpos] = a[apos];
+      apos++;
+    }
+    else if(a[apos] < b[bpos])
+    {
+      c[cpos] = a[apos];
+      apos++;
+    }
+    else
+    {
+      c[cpos] = b[bpos];
+      bpos++;
+    }
+    cpos++;
+  }
+
+  cout << "   C: ";
+  for (int i = 0; i < csz; ++i) cout << c[i] << ' ';
+  cout << endl;
+
+  cout << "   MID: " << c[csz/2] << endl;
+
+  return c[csz/2];
 }
 
 /**
@@ -146,11 +202,13 @@ void cstrout(const char* s)
   char a5[sz + 1];
   memset(a5, 0, sz + 1);
   sprintf(a5, fmt, s);
-  printf(fmt, "   a5: ", a5);
+  const char* fmt1 = "   a5: %s";
+  printf(fmt1, a5);
   sz += strlen("   a6: ") + 1;
   char a6[sz + 1];
   memset(a6, 0, sz + 1);
-  snprintf(a6, sz + 1, fmt, "   a6: ", s);
+  const char* fmt2 = "   a6: %s";
+  snprintf(a6, sz + 1, fmt2, s);
   printf("\n%s\n", a6);
 }
 
@@ -170,6 +228,9 @@ int main(int argc, char* argv[])
   reverseinplace(c);
   cstrout(c);
   cstrops();
+
+
+  arraymid(a, a);
 
   return 0;
 }
