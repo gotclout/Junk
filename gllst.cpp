@@ -117,6 +117,47 @@ void testlist()
 }
 
 /**
+ *
+ */
+bool cyclic(list* & l)
+{
+  bool rval = false;
+
+  if(l)
+  {
+    lnode* cur = l->head;
+
+    set<lnode*> discovered;
+
+    while(cur && !rval)
+    {   
+      if(discovered.empty())
+      {   
+        discovered.insert(cur);
+      }   
+      else
+      {   
+        if(cur->next && cur->next == cur)
+        {   
+          rval = true;
+        }   
+        else if(discovered.find(cur) == discovered.end())
+        {   
+          discovered.insert(cur);
+        }   
+        else
+        {   
+          rval = true;
+        }   
+      }   
+      cur = cur->next;
+    }   
+  }
+
+  return rval;
+}
+
+/**
  * Seed the random number generator;
  * Generate a set of global integers
  * Test the list
