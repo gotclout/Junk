@@ -13,7 +13,7 @@ const int maxelem = 23; //num elements to generate
 int majority(vector<int> & e)
 {
   int m  = 0;        //majority value
-  map<int, int> kv;  //map key element value occurences
+  map<int, int> kv;  //map key element value occurrences
 
   for(int i = 0; i < maxelem; ++i)
   {
