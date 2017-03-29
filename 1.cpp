@@ -66,7 +66,7 @@ void test(int A[], const int n)
   cout << "End...\n";
 }
 
-int main(int argv, char** argc)
+int main(int argc, char** argv)
 {
   int A0[7] = {-1, 2, 4, 5, 5, 8, 9};
   int A1[8] = {-1, 1, 1, 5, 5, 7, 7, 9};
