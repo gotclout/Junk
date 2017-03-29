@@ -56,7 +56,7 @@ class baz : private bar
   void fin(){bar::fin();};
 };
 
-int main(char** argv, int argc)
+int main(int argc, char** argv)
 {
   baz* bz = new baz();
   bz->dostuff();
