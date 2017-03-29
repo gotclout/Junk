@@ -49,7 +49,7 @@ void printlist(list* & l)
   }
 }
 
-int main(char** argv, int argc)
+int main(int argc, char** argv)
 {
   list* l = makelist();
   printlist(l);
