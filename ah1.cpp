@@ -48,7 +48,7 @@ int partition(int A[], const int x)
   return m;
 }
 
-int main(int argv, char** argc)
+int main(int argc, char** argv)
 {
   int A[7] = {-1, 2, 4, 5, 5, 8, 9};
   cout << "begin iterative" << endl;
