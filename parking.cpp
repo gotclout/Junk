@@ -42,7 +42,7 @@ void swap(int* a, const int* b, const int & idx)
 /**
  *  TODO: Doc
  */
-int main(char** argv, int argc)
+int main(int argc, char** argv)
 {
   timer t;
   t.Start();
