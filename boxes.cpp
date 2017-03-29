@@ -1,5 +1,7 @@
 #include <iostream>
 #include <string>
+#include <cstdlib>
+#include <ctime>
 
 #define S 100
 #define K 2  //A box has K dimensions
@@ -80,8 +82,6 @@ int costD()
     {
       if(fits(i, j))
       {
-        //cout << "cost[" << i << "] = " << cost[i] << ": cost["
-        //     << j << "] + 1 = " << cost[j]+1 << endl;
         cost[i] = max(cost[i], cost[j]+1);
         if(cost[i] > M) M = cost[i];
         cout << "box " << i << " fits into box " << j << endl;
@@ -94,7 +94,7 @@ int costD()
   return M;
 }
 
-int main(char* argv[], int argc)
+int main(int argc, char** argv)
 {
   srand(time(0));
   makeD();
