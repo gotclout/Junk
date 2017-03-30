@@ -140,6 +140,7 @@ class heap
       if(src->right)
         src->right->parent = src;
       helper->right = src;
+
       node* tmp = src->left;
       src->left = helper->left;
       if(src->left)
@@ -245,7 +246,8 @@ class heap
     if(h.root)
     {
       o << *h.root << h.printtree(h.root)
-        << endl << h._printtree(h.root);
+        << endl << h.root->key << ":" << h.root->value << " "
+        << h._printtree(h.root);
     }
     else o << "Heap is empty...\n";
     return o;
@@ -324,15 +326,25 @@ class heap
       root = n;
       cout << "Insert Root: " << key << '\n';
     }
+   /* else if(*n > *root)
+    {
+      n->left = root;
+      n->right = root->right;
+      root->right = 0;
+      root->parent = n;
+      root = n;
+      siftup(n->left);
+    }*/
     else
     {
       node* cur = root;
       while(cur)
       {
-        if(cur->key == key)
+        if(cur->key == key) //TODO: move this to else if^^
         {
           delete n;
           cur = 0;
+          retVal = false;
         }
         else if(!cur->right && !cur->left)
         {
@@ -421,8 +433,8 @@ class heap
           next = root->left;
         }
 
-        K key = max->key;
-        V val = max->value;
+        K k = max->key;
+        V v = max->value;
 
         node* tmp = next;
 
@@ -438,7 +450,7 @@ class heap
 
         nodes -= 2;
 
-        insert(key, val);
+        insert(k, v);
         top->right = 0;
         top->left  = 0;
       }
@@ -502,6 +514,38 @@ class heap
 
 };
 
+void t0()
+{
+  gvals[0] = 6;
+  gvals[1] = 5;
+  gvals[2] = 3;
+  gvals[3] = 1;
+  gvals[4] = 8;
+  gvals[5] = 7;
+  gvals[6] = 2;
+  gvals[7] = 4;
+}
+
+void t1()
+{
+  gvals[0] = 10;
+  gvals[1] = 1;
+  gvals[2] = 18;
+  gvals[3] = 17;
+  gvals[4] = 6;
+  gvals[5] = 19;
+  gvals[6] = 12;
+  gvals[7] = 20;
+}
+
+void pkeys()
+{
+  cout << "keys: ";
+
+  for(int i = 0; i < N; ++i)
+    i+1 < N ? cout << gvals[i] << ", " : cout << gvals[i] << endl;
+}
+
 /**
  *
  */
@@ -514,19 +558,13 @@ int main(int argc, char* argv[])
   int k;
   long v;
 
-  gvals[0] = 6;
-  gvals[1] = 5;
-  gvals[2] = 3;
-  gvals[3] = 1;
-  gvals[4] = 8;
-  gvals[5] = 7;
-  gvals[6] = 2;
-  gvals[7] = 4;
 
+  t1();
+  pkeys();
   for(int i = 0; i < N; i++)
   {
-    k = rand() % 20 + 1;
-    //k = gvals[i];
+    //k = rand() % 20 + 1;
+    k = gvals[i];
     v = rand() % 40 + 1;
     h.insert(k, v);
   }
