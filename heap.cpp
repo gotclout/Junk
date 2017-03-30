@@ -395,7 +395,13 @@ class heap
   {
     node* top = 0;
 
-    if(nodes > 0)
+    if(nodes == 1)
+    {
+      top   = root;
+      root  = 0;
+      nodes = 0;
+    }
+    else if(nodes > 0)
     {
       top = root;
 
