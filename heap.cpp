@@ -115,12 +115,10 @@ class heap
 
   private:
 
-  node *root,  //TODO: root parent = null or self
-       *helper;
-
-  bool maxHeap;
-
-  int nodes;
+  int   nodes;   //
+  node *root,    //TODO: root parent = null or self
+       *helper;  //
+  bool  maxHeap; //
 
   protected:
 
@@ -130,7 +128,7 @@ class heap
   node* swapnodes(node* & src, node* & dst)
   {
     cout << "Swap Nodes: [SRC = " << src->key << ", DST = " << dst->key
-      << "]\n";
+         << "]\n";
 
     helper   = dst;
     node* p  = src->parent,
@@ -220,13 +218,13 @@ class heap
   public:
 
   /**
-   *
+   * @param: bool pMax
    */
   heap(bool pMax = 1)
   {
-    root = 0;
     maxHeap = pMax;
-    nodes = 0;
+    root    = 0;
+    nodes   = 0;
   };
 
   /**
@@ -235,7 +233,7 @@ class heap
   void heapify(bool pMax = 1)
   {
     maxHeap = pMax;
-    nodes = 0;
+    nodes   = 0;
   };
 
   /**
@@ -267,11 +265,11 @@ class heap
     {
       if(n->left)
       {
-        ss << n->left->value << " ";
+        ss << n->left->key << ":" << n->left->value << " ";
       }
       if(n->right)
       {
-        ss << n->right->value << " ";
+        ss << n->right->key << ":" << n->right->value << " ";
       }
       ss << _printtree(n->left);
       ss << _printtree(n->right);
@@ -306,7 +304,12 @@ class heap
     }
 
     return ss.str();
-  }
+  };
+
+  /**
+   *
+   */
+  bool insert(const node* & np) { insert(np->key, np->value); };
 
   /**
    *
@@ -383,6 +386,8 @@ class heap
     return retVal;
   };
 
+  //extract()
+
   /**
    * TODO: This should probably return top->value rather than top->key...
    */
@@ -390,7 +395,7 @@ class heap
   {
     node* top = 0;
 
-    if(nodes)
+    if(nodes > 0)
     {
       top = root;
 
@@ -415,27 +420,32 @@ class heap
 
         node* tmp = next;
 
-        while(tmp->left || tmp->right) tmp = tmp->right;
+        while(tmp->left || tmp->right) tmp->right ? tmp = tmp->right : tmp = tmp->left;
+        //while(tmp->left || tmp->right) tmp = tmp->right;
 
         tmp->left = max->left;
-        tmp->left->parent = tmp;
+        if(tmp->left) tmp->left->parent = tmp;
         tmp->right = max->right;
-        tmp->right->parent = tmp;
+        if(tmp->right) tmp->right->parent = tmp;
         root = next;
         next->parent = 0;
 
         nodes -= 2;
 
         insert(key, val);
+        top->right = 0;
+        top->left  = 0;
       }
       else if(root->left)
       {
         max = root->left;
+        nodes--;
         //anddin
       }
       else if(root->right)
       {
         max = root->right;
+        nodes--;
         //anddin
       }
       else
@@ -444,16 +454,13 @@ class heap
       }
     }
 
-    top->right = 0;
-    top->left  = 0;
-
     return top;
   };
 
   /**
-   *
+   * this U rhs (union of this heaps node with parameter heaps nodes)
    */
-  void merge()
+  void merge(const heap & rhs)
   {
 
   };
@@ -470,9 +477,22 @@ class heap
   }
 
   /**
+   * Replace root
+   */
+  void updatekey()
+  {
+
+  };
+
+  /**
    *
    */
   const int& size() const { return nodes; };
+
+  /**
+   *
+   */
+  bool empty() { return nodes == 0; };
 
 };
 
@@ -499,15 +519,17 @@ int main(int argc, char* argv[])
 
   for(int i = 0; i < N; i++)
   {
-    //k = rand() % 20 + 1;
-    k = gvals[i];
+    k = rand() % 20 + 1;
+    //k = gvals[i];
     v = rand() % 40 + 1;
     h.insert(k, v);
   }
 
+  while(!h.empty()){
   cout << h << endl << "Popping top of heap..." << endl;
   heap<int, long>::node* hn = h.pop();
   cout << "Heap pop returned node:" << endl << *hn << endl << "Heap after pop" << endl;
+  }
   cout << h;
 
   return 0;
