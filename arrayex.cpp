@@ -10,7 +10,7 @@ using namespace std;
 /**
  * Reverse substring in place
  */
-char* reverse_words(char* & str)
+char* reverse_words(char* str)
 {
   // IN:  "abc def dog."  -->
   // OUT: "cba fed .god"
@@ -229,8 +229,9 @@ int main(int argc, char* argv[])
   cstrout(c);
   cstrops();
 
-
   arraymid(a, a);
-
+  char s [] = "abc def dog.";
+  char* r = reverse_words((char*) s);
+  
   return 0;
 }
