@@ -21,7 +21,7 @@
 using namespace std;
 
 /**
- * Contains data associated with a command to be executed
+ * Contains data (args, background, etc...) associated with a command to be executed
  */
 struct CmdData
 {
@@ -115,9 +115,8 @@ int8_t canexec(const char* pPath, char err[], int rv = -1)
 /**
  * Locates the specified command and verifies that it is executable
  *
- * @param char** args is the string array of command arguments and the
- *  first entry is the command to be executed
- * @return char* is a path to the command to be executed (may be null)
+ * @param CmdData cmd is the command object reference for the command to be executed
+ * @return bool True if successfully executed, False otherwise
  */
 bool get_cmd_pth(CmdData & cmd)
 {
@@ -156,7 +155,7 @@ bool get_cmd_pth(CmdData & cmd)
  * @param int num_args, the num arguments in args
  * @return bool true if success, false otherwise
  */
-bool get_args(CmdData & d, char* buf = 0)//char* args[], int & argc)
+bool get_args(CmdData & d, char* buf = 0)
 {
   cout << "\n>> "; //prompt
   size_t ap, len,  pos = getline(&buf, &ARG_MAX, stdin), cpos = pos;//read
