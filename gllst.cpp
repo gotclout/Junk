@@ -38,7 +38,7 @@ struct list
    * stored in the list.
    *
    * @param void* data, is the data to be stored in the list lode
-   * @param void* data, is the size of the data to be stored
+   * @param int _sz, is the size (bytes) of the data to be stored
    */
   bool insert(void* data, int size)
   {
@@ -66,6 +66,7 @@ struct list
 
   /**
    * List Destructor
+   *
    * Deallocates memory allocated by calling insert
    */
   ~list()
@@ -161,6 +162,9 @@ bool cyclic(list* & l)
  * Seed the random number generator;
  * Generate a set of global integers
  * Test the list
+ *
+ * @param int argc, num args
+ * @param char** argv, arg vector
  */
 int main(int argc, char** argv)
 {
