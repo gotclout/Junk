@@ -82,7 +82,7 @@ bool execute(CmdData & cmd)
   else if(pid == 0)             //child process
   {
     if(cmd.inf) ifid=open(cmd.inf,O_RDONLY|O_NONBLOCK,00222);
-    if(cmd.outf )ofid=open(cmd.outf,O_WRONLY|O_RDONLY|O_CREAT,00666);
+    if(cmd.outf) ofid=open(cmd.outf,O_WRONLY|O_RDONLY|O_CREAT,00666);
     execv(cmd.pth, cmd.args);   //execute command
     if(cmd.inf) close(ifid);    //end redirection
     if(cmd.outf) close(ofid);
